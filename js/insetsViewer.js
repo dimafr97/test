@@ -3,7 +3,7 @@
 // UI: Prev / Галерея / Next остаётся тем же.
 
 import { initThree, setModel as threeSetModel } from "./threeViewer.js";
-import { loadModelFromMeta } from "./models.js";
+import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
 
 let dom = null;
@@ -103,10 +103,11 @@ export function openById(id) {
   // загрузка
   showLoading(`Загрузка: ${meta.name}`);
 
-  loadModelFromMeta(meta, `inset:${id}`, {
-    onProgress: (p) => setProgress(p),
-    onStatus: (s) => setStatus(s)
-  })
+loadModel(meta.sourceId || meta.id, {
+  onProgress: (p) => setProgress(p),
+  onStatus: (s) => setStatus(s)
+})
+
     .then(({ root }) => {
       threeSetModel(root);
       hideLoading();
