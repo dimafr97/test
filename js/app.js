@@ -5,8 +5,40 @@
 //
 // Если пользователь НЕ в нужной группе — показываем lockScreen и НЕ запускаем приложение.
 
-import { initGallery } from "./gallery.js";
+import { renderGallery } from "./gallery.js";
 import { initViewer } from "./viewer.js";
+import { MODELS } from "./models.js";
+
+// ✅ Главное меню (как галерея, но карточки-разделы)
+const MAIN_MENU = [
+  {
+    id: "section_arch",
+    name: "Архитектурные детали",
+    desc: "3D + Построение + Видео",
+    // можно без preview — будет буква
+    thumbLetter: "А"
+  },
+  {
+    id: "section_insets",
+    name: "Врезки",
+    desc: "3D врезок (пока тест)",
+    thumbLetter: "В"
+  }
+];
+
+// ✅ Временный список “врезок” — для теста дублируем мольберт
+// ВАЖНО: id оставляем "molbert", чтобы viewer.js смог открыть его как обычную модель.
+const TEMP_INSETS = [
+  {
+    id: "molbert", // тот же id, что в MODELS
+    name: "Мольберт (врезка — тест)",
+    desc: "Временно задублировано из Архитектурных деталей",
+    // берём preview из обычных моделей (найдём ниже при рендере)
+    // preview: можно не ставить, будет буква
+    thumbLetter: "М"
+  }
+];
+
 
 /* ============================================================
    0. ДОСТУП ТОЛЬКО ИЗ КОНКРЕТНОЙ ГРУППЫ
@@ -227,9 +259,56 @@ videoEmptyEl,     // ADDED
   });
 
   // 🔥 4. Инициализация галереи
-  initGallery(galleryEl, {
-    onSelect: viewer.openModelById
+// =======================
+// ✅ Навигация по экранам
+// =======================
+let currentScreen = "main"; // "main" | "arch" | "insets"
+
+// маленький хелпер: показать список карточек в #gallery
+function showMainMenu() {
+  currentScreen = "main";
+  renderGallery(galleryEl, MAIN_MENU, {
+    onSelect: (id) => {
+      if (id === "section_arch") showArchGallery();
+      if (id === "section_insets") showInsetsGallery();
+    }
   });
+
+  // гарантируем, что мы на экране галереи
+  viewer.showGallery();
+}
+
+// экран “архитектурных деталей” = обычный список MODELS
+function showArchGallery() {
+  currentScreen = "arch";
+  renderGallery(galleryEl, MODELS, { onSelect: viewer.openModelById });
+  viewer.showGallery();
+}
+
+// экран “врезок” = временно только мольберт
+function showInsetsGallery() {
+  currentScreen = "insets";
+
+  // Чтобы у карточки мольберта было настоящее preview — подцепим его из MODELS, если найдём
+  const molbertMeta = MODELS.find((m) => m.id === "molbert");
+  if (molbertMeta && molbertMeta.preview) {
+    TEMP_INSETS[0].preview = molbertMeta.preview;
+  }
+
+  renderGallery(galleryEl, TEMP_INSETS, { onSelect: viewer.openModelById });
+  viewer.showGallery();
+}
+
+// старт — показываем главное меню
+showMainMenu();
+
+// ✅ (опционально) сделать кликабельным заголовок, чтобы всегда возвращаться в главное меню
+const headerTitle = document.querySelector(".app-title");
+headerTitle?.addEventListener("click", () => {
+  // если ты в viewer — просто вернёмся в меню
+  showMainMenu();
+});
+
 
   console.log("App initialized: access granted.");
 }
