@@ -544,6 +544,18 @@ body.video-playing .video-card.active video { /* ADDED */
   border-radius: 10px;
   display: block;
 }
+      
+/* ✅ Режим "Врезки": скрываем вкладки (3D/Построение/Видео) и оверлеи */
+body.inset-mode .viewer-tabs-row {
+  display: none !important;
+}
+
+/* В режиме врезок схемы/видео не должны показываться даже случайно */
+body.inset-mode #schemeOverlay,
+body.inset-mode #videoOverlay {
+  display: none !important;
+}
+
 
 
   </style>
