@@ -4,7 +4,8 @@
 // Добавлена проверка доступа по chat_instance.
 //
 // Если пользователь НЕ в нужной группе — показываем lockScreen и НЕ запускаем приложение.
-
+import { initInsetsViewer } from "./insetsViewer.js";
+import { INSETS } from "./insetsModels.js";
 import { renderGallery } from "./gallery.js";
 import { initViewer } from "./viewer.js";
 import { MODELS } from "./models.js";
@@ -257,6 +258,23 @@ videoEmptyEl,     // ADDED
     progressBarEl,
     statusEl
   });
+  const insetViewer = initInsetsViewer({
+  galleryEl,
+  viewerWrapperEl,
+  modelLabelEl,
+  prevBtn,
+  nextBtn,
+  backBtn,
+  tab3dBtn,
+  tabSchemeBtn,
+  tabVideoBtn,
+  canvasEl,
+  loadingEl,
+  loadingTextEl,
+  progressBarEl,
+  statusEl
+});
+
 
   // 🔥 4. Инициализация галереи
 // =======================
@@ -295,7 +313,7 @@ function showInsetsGallery() {
     TEMP_INSETS[0].preview = molbertMeta.preview;
   }
 
-  renderGallery(galleryEl, TEMP_INSETS, { onSelect: viewer.openModelById });
+  renderGallery(galleryEl, INSETS, { onSelect: insetViewer.openById });
   viewer.showGallery();
 }
 
