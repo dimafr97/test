@@ -12,6 +12,59 @@
 //
 
 import { MODELS } from "./models.js";
+// ✅ Универсальный рендер галереи для любого списка карточек
+export function renderGallery(containerEl, items, { onSelect }) {
+  if (!containerEl) {
+    console.error("renderGallery: containerEl is null");
+    return;
+  }
+
+  if (typeof onSelect !== "function") {
+    console.error("renderGallery: onSelect must be a function");
+    return;
+  }
+
+  containerEl.innerHTML = "";
+
+  items.forEach((m) => {
+    const card = document.createElement("div");
+    card.className = "model-card";
+    card.dataset.model = m.id;
+
+    // === Превью (PNG или fallback-буква) ===
+    const thumb = document.createElement("div");
+    thumb.className = "model-thumb";
+
+    if (m.preview) {
+      const img = document.createElement("img");
+      img.src = m.preview;
+      img.alt = m.name;
+      img.loading = "lazy";
+      img.decoding = "async";
+      thumb.appendChild(img);
+    } else {
+      thumb.textContent = m.thumbLetter || (m.name ? m.name.charAt(0) : "?");
+    }
+
+    // === Заголовок ===
+    const caption = document.createElement("div");
+    caption.className = "model-caption";
+    caption.textContent = m.name || "";
+
+    // === Описание ===
+    const desc = document.createElement("div");
+    desc.className = "model-desc";
+    desc.textContent = m.desc || "";
+
+    card.appendChild(thumb);
+    card.appendChild(caption);
+    card.appendChild(desc);
+
+    card.addEventListener("click", () => onSelect(m.id));
+    containerEl.appendChild(card);
+  });
+}
+
 
 /**
  * Инициализация галереи.
@@ -21,10 +74,9 @@ import { MODELS } from "./models.js";
  * @param {function(string):void} options.onSelect — вызывается при клике по карточке
  */
 export function initGallery(containerEl, { onSelect }) {
-  if (!containerEl) {
-    console.error("initGallery: containerEl is null");
-    return;
-  }
+  renderGallery(containerEl, MODELS, { onSelect });
+}
+
 
   if (typeof onSelect !== "function") {
     console.error("initGallery: onSelect must be a function");
