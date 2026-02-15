@@ -211,6 +211,9 @@ const videoEmptyEl = document.getElementById("videoEmpty"); // ADDED
   const progressBarEl = document.getElementById("progressBar");
 
   const statusEl = document.getElementById("status");
+  const breadcrumbBar = document.getElementById("breadcrumbBar");
+const breadcrumbMenuBtn = document.getElementById("breadcrumbMenuBtn");
+const breadcrumbSectionLabel = document.getElementById("breadcrumbSectionLabel");
 
   window.debugLog = { textContent: "" };
 
@@ -281,6 +284,17 @@ videoEmptyEl,     // ADDED
 // ✅ Навигация по экранам
 // =======================
 let currentScreen = "main"; // "main" | "arch" | "insets"
+  
+function setBreadcrumbVisible(visible) {
+  if (!breadcrumbBar) return;
+  breadcrumbBar.style.display = visible ? "flex" : "none";
+}
+
+function setBreadcrumbSection(title) {
+  if (!breadcrumbSectionLabel) return;
+  breadcrumbSectionLabel.textContent = title || "";
+}
+
 
 // маленький хелпер: показать список карточек в #gallery
 function showMainMenu() {
@@ -289,6 +303,8 @@ function showMainMenu() {
     onSelect: (id) => {
       if (id === "section_arch") showArchGallery();
       if (id === "section_insets") showInsetsGallery();
+      setBreadcrumbVisible(false);
+setBreadcrumbSection("");
     }
   });
 
@@ -301,6 +317,8 @@ function showArchGallery() {
   currentScreen = "arch";
   renderGallery(galleryEl, MODELS, { onSelect: viewer.openModelById });
   viewer.showGallery();
+  setBreadcrumbVisible(true);
+setBreadcrumbSection("Архитектурные детали");
 }
 
 // экран “врезок” = временно только мольберт
@@ -311,6 +329,8 @@ function showInsetsGallery() {
   const molbertMeta = MODELS.find((m) => m.id === "molbert");
   if (molbertMeta && molbertMeta.preview) {
     TEMP_INSETS[0].preview = molbertMeta.preview;
+    setBreadcrumbVisible(true);
+setBreadcrumbSection("Врезки");
   }
 
   renderGallery(galleryEl, INSETS, { onSelect: insetViewer.openById });
@@ -319,6 +339,10 @@ function showInsetsGallery() {
 
 // старт — показываем главное меню
 showMainMenu();
+  breadcrumbMenuBtn?.addEventListener("click", () => {
+  showMainMenu();
+});
+
 
 // ✅ (опционально) сделать кликабельным заголовок, чтобы всегда возвращаться в главное меню
 const headerTitle = document.querySelector(".app-title");
