@@ -2,23 +2,18 @@
 // Viewer для "Врезок": только 3D, без схем и видео.
 // UI: Prev / Галерея / Next остаётся тем же.
 
-import { initThree, setModel as threeSetModel } from "./threeViewer.js";
+import { setModel as threeSetModel } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
 
 let dom = null;
 let currentId = null;
-let threeInited = false;
 
 export function initInsetsViewer(refs) {
   dom = { ...refs };
   if (!dom.canvasEl) throw new Error("initInsetsViewer: canvasEl missing");
 
-  // threeViewer singleton — инициализируем только один раз на весь проект
-  if (!threeInited) {
-    initThree(dom.canvasEl);
-    threeInited = true;
-  }
+
 
   setupUiHandlers();
 
