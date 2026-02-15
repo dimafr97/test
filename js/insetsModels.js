@@ -7,6 +7,7 @@ export const INSETS = [
   {
     ...MODELS.find((m) => m.id === "molbert"),
     id: "inset_molbert",             // новый id, чтобы не конфликтовать
+    sourceId: "molbert",
     name: "Мольберт (врезка)",
     desc: "Тестовый объект врезок",
     // ✅ имя материала, который будет управляться ползунком (позже добавим)
