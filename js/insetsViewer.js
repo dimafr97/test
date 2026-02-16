@@ -108,22 +108,22 @@ function setupUiHandlers() {
   dom.tabSchemeBtn?.classList.remove("active");
   dom.tabVideoBtn?.classList.remove("active");
     // ✅ Ползунок прозрачности (работает только для выбранного материала, например "3")
-  dom.insetOpacitySlider?.addEventListener("input", () => {
-    const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
-    currentOpacity = Math.max(0, Math.min(1, v / 100));    // 0..1
-    applyOpacityToControlled();
-      // ✅ Важно: на телефоне не отдаём тач/drag дальше (в canvas), иначе ползунок не тянется
-  if (dom.insetOpacitySlider) {
-    const stop = (e) => {
-      e.stopPropagation();
-    };
+dom.insetOpacitySlider?.addEventListener("input", () => {
+  const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
+  currentOpacity = Math.max(0, Math.min(1, v / 100));    // 0..1
+  applyOpacityToControlled();
+});
+// ✅ Важно: на телефоне не отдаём тач/drag дальше (в canvas), иначе первый drag не цепляется
+if (dom.insetOpacitySlider) {
+  const stop = (e) => e.stopPropagation();
+  const opt = { passive: true, capture: true };
 
-    dom.insetOpacitySlider.addEventListener("pointerdown", stop, { passive: true });
-    dom.insetOpacitySlider.addEventListener("touchstart", stop, { passive: true });
-    dom.insetOpacitySlider.addEventListener("touchmove", stop, { passive: true });
-  }
+  dom.insetOpacitySlider.addEventListener("pointerdown", stop, opt);
+  dom.insetOpacitySlider.addEventListener("pointermove", stop, opt);
+  dom.insetOpacitySlider.addEventListener("touchstart", stop, opt);
+  dom.insetOpacitySlider.addEventListener("touchmove", stop, opt);
+}
 
-  });
 }
 
 function getIndex(id) {
