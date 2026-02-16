@@ -8,6 +8,10 @@ import { INSETS, getInsetMeta } from "./insetsModels.js";
 
 let dom = null;
 let currentId = null;
+// ✅ Материалы, которыми управляет ползунок прозрачности
+let controlledMaterials = [];
+let currentOpacity = 1; // 0..1
+
 
 export function initInsetsViewer(refs) {
   dom = { ...refs };
@@ -27,11 +31,51 @@ export function initInsetsViewer(refs) {
 
 function enterInsetMode() {
   document.body.classList.add("inset-mode");
+
+  // ✅ Сбрасываем прозрачность на 100% при входе во Врезки
+  currentOpacity = 1;
+  if (dom?.insetOpacitySlider) dom.insetOpacitySlider.value = "100";
 }
+
 
 function exitInsetMode() {
   document.body.classList.remove("inset-mode");
 }
+// ✅ Собрать все материалы с нужным именем (например "3") внутри загруженной модели
+function collectMaterialsByName(root, name) {
+  const out = [];
+  if (!root || !name) return out;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const m of mats) {
+      if (!m) continue;
+      if (m.name === name) out.push(m);
+    }
+  });
+
+  // ✅ Убираем дубликаты (часто один material шарится несколькими mesh)
+  return Array.from(new Set(out));
+}
+
+// ✅ Применить текущую прозрачность ко всем "управляемым" материалам
+function applyOpacityToControlled() {
+  for (const m of controlledMaterials) {
+    const needTransparent = currentOpacity < 0.999;
+
+    // Важно: opacity работает только если transparent=true
+    m.transparent = needTransparent;
+    m.opacity = currentOpacity;
+
+    // Чтобы прозрачность выглядела стабильнее:
+    // когда объект прозрачный, глубину лучше не писать
+    m.depthWrite = !needTransparent;
+
+    m.needsUpdate = true;
+  }
+}
+
 
 function setupUiHandlers() {
   const { prevBtn, nextBtn, backBtn } = dom;
@@ -63,6 +107,12 @@ function setupUiHandlers() {
   dom.tab3dBtn?.classList.add("active");
   dom.tabSchemeBtn?.classList.remove("active");
   dom.tabVideoBtn?.classList.remove("active");
+    // ✅ Ползунок прозрачности (работает только для выбранного материала, например "3")
+  dom.insetOpacitySlider?.addEventListener("input", () => {
+    const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
+    currentOpacity = Math.max(0, Math.min(1, v / 100));    // 0..1
+    applyOpacityToControlled();
+  });
 }
 
 function getIndex(id) {
@@ -76,6 +126,8 @@ export function showGallery() {
   if (statusEl) statusEl.textContent = "";
   currentId = null;
   exitInsetMode();
+  controlledMaterials = [];
+currentOpacity = 1;
 }
 
 export function openById(id) {
@@ -103,11 +155,25 @@ loadModel(meta.sourceId || meta.id, {
   onStatus: (s) => setStatus(s)
 })
 
-    .then(({ root }) => {
-      threeSetModel(root);
-      hideLoading();
-      setStatus("");
-    })
+  .then(({ root }) => {
+    threeSetModel(root);
+
+    // ✅ Находим материалы, которыми управляет ползунок (в твоём случае "3")
+    controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+
+    // ✅ Применяем текущую прозрачность (по умолчанию 1)
+    applyOpacityToControlled();
+
+    // ✅ Для контроля можно показать статус (можно потом убрать)
+    if (controlledMaterials.length === 0) {
+      setStatus(`Материал "${meta.opacityMaterialName}" не найден`);
+    } else {
+      setStatus(""); // или: setStatus(`Материал "${meta.opacityMaterialName}" найден (${controlledMaterials.length})`);
+    }
+
+    hideLoading();
+  })
+
     .catch((err) => {
       console.error(err);
       hideLoading();
