@@ -561,7 +561,6 @@ body.inset-mode #videoOverlay {
 #breadcrumbBar {
   position: relative;
   z-index: 10;
-  display: flex;
   align-items: center;
   gap: 8px;
   flex: 0 0 auto;
@@ -578,18 +577,18 @@ body.inset-mode #videoOverlay {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-
   font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
+  color: #f5f5f5;
 
-  /* чтобы не наезжал на кнопку слева и на правый блок */
   max-width: calc(100% - 140px);
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
 }
+
 
 
 
@@ -614,7 +613,7 @@ body.inset-mode #videoOverlay {
 <div class="app-root">
   <header class="app-header">
     <!-- ✅ Breadcrumb (слева). В стиле ваших .btn -->
-<div id="breadcrumbBar" style="display:none; align-items:center; gap:8px;">
+<div id="breadcrumbBar" style="align-items:center; gap:8px;">
   <button class="btn" id="breadcrumbBackBtn">←</button>
   <span id="breadcrumbSectionLabel" style="font-weight:600;"></span>
 </div>
