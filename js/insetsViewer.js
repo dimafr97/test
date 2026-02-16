@@ -113,41 +113,63 @@ function setupUiHandlers() {
     currentOpacity = Math.max(0, Math.min(1, v / 100));    // 0..1
     applyOpacityToControlled();
       // ✅ Важно: на телефоне не отдаём тач/drag дальше (в canvas), иначе ползунок не тянется
+// ✅ Ползунок прозрачности
 if (dom.insetOpacitySlider) {
-  // ✅ 1) "Подхватываем" ползунок по месту касания.
-  // Это решает проблему, когда бегунок стоит в самом начале и не тянется.
-  const snapToPointer = (e) => {
-    const el = dom.insetOpacitySlider;
-    const rect = el.getBoundingClientRect();
+  const el = dom.insetOpacitySlider;
 
-    // pointer events дают clientX и на мобилке, и на десктопе
-    const x = Math.min(rect.right, Math.max(rect.left, e.clientX));
-    const t = (x - rect.left) / rect.width; // 0..1
-
-    const min = Number(el.min || 0);
-    const max = Number(el.max || 100);
-    const value = Math.round(min + t * (max - min));
-
-    el.value = String(value);
-
-    // применяем сразу
-    currentOpacity = Math.max(0, Math.min(1, value / 100));
+  // обновление по значению (когда уже тянут или кликнули)
+  el.addEventListener("input", () => {
+    const v = Number(el.value || 100);
+    currentOpacity = Math.max(0, Math.min(1, v / 100));
     applyOpacityToControlled();
-  };
+  });
 
-  // ✅ 2) Не отдаём событие в canvas (иначе тач начинает вращать сцену)
-  const stop = (e) => {
+  let primed = false; // чтобы "активацию" сделать только один раз
+
+  const primeAndSnap = (e) => {
+    // не отдаём событие дальше в canvas
     e.stopPropagation();
+
+    // 1) фокус — iOS иногда без него не стартует drag
+    try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (_) {} }
+
+    // 2) pointer capture — чтобы браузер точно "держал" ползунок
+    if (e.pointerId != null && el.setPointerCapture) {
+      try { el.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+
+    // 3) на первом касании ставим value по месту касания
+    // (это как будто ты "тапнул по дорожке", после чего drag всегда работает)
+    if (!primed) {
+      primed = true;
+
+      const rect = el.getBoundingClientRect();
+      const x = Math.min(rect.right, Math.max(rect.left, e.clientX));
+      const t = (x - rect.left) / rect.width;
+
+      const min = Number(el.min || 0);
+      const max = Number(el.max || 100);
+      const value = Math.round(min + t * (max - min));
+
+      el.value = String(value);
+
+      currentOpacity = Math.max(0, Math.min(1, value / 100));
+      applyOpacityToControlled();
+    }
   };
 
-  // ВАЖНО: сначала snap, потом stop
-  dom.insetOpacitySlider.addEventListener("pointerdown", snapToPointer, { passive: true });
-  dom.insetOpacitySlider.addEventListener("pointerdown", stop, { passive: true });
+  // pointerdown — главный для iOS/TG
+  el.addEventListener("pointerdown", primeAndSnap, { passive: true });
 
-  // touchstart/touchmove можно оставить как у тебя (это не мешает)
-  dom.insetOpacitySlider.addEventListener("touchstart", stop, { passive: true });
-  dom.insetOpacitySlider.addEventListener("touchmove", stop, { passive: true });
+  // на всякий случай: блокируем всплытие тач-движения
+  el.addEventListener("touchstart", (e) => e.stopPropagation(), { passive: true });
+  el.addEventListener("touchmove", (e) => e.stopPropagation(), { passive: true });
+
+  // если вышли из режима врезок/открыли другую модель — сбросим primed
+  // (сделаем это через кастомное событие: см. Шаг 2 ниже)
+  el.addEventListener("inset-reset", () => { primed = false; });
 }
+
 
   });
 }
@@ -176,6 +198,9 @@ export function openById(id) {
 
   currentId = id;
   enterInsetMode();
+  // ✅ сброс "первой активации" ползунка при открытии модели
+dom.insetOpacitySlider?.dispatchEvent(new Event("inset-reset"));
+
 
   // показываем viewer
   dom.galleryEl?.classList.add("hidden");
