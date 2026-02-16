@@ -601,6 +601,16 @@ body.inset-mode #insetOpacityRow {
   accent-color: #8888ff;
 }
 
+/* ✅ Чтобы range нормально "тянулся" в Telegram/iOS/Android */
+#insetOpacityRow,
+#insetOpacitySlider {
+  pointer-events: auto !important;
+  touch-action: pan-x !important;   /* разрешаем горизонтальный drag */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+
 
 
 
