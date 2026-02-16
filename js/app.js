@@ -211,6 +211,10 @@ const videoEmptyEl = document.getElementById("videoEmpty"); // ADDED
   const progressBarEl = document.getElementById("progressBar");
 
   const statusEl = document.getElementById("status");
+  // ✅ Ползунок прозрачности для режима "Врезки"
+const insetOpacityRow = document.getElementById("insetOpacityRow");
+const insetOpacitySlider = document.getElementById("insetOpacitySlider");
+
   const breadcrumbBar = document.getElementById("breadcrumbBar");
 const breadcrumbBackBtn = document.getElementById("breadcrumbBackBtn");
 const breadcrumbSectionLabel = document.getElementById("breadcrumbSectionLabel");
@@ -279,7 +283,9 @@ videoEmptyEl,     // ADDED
   loadingEl,
   loadingTextEl,
   progressBarEl,
-  statusEl
+  statusEl,
+  insetOpacityRow,
+  insetOpacitySlider
 });
 
 
