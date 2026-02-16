@@ -299,12 +299,13 @@ function setBreadcrumbSection(title) {
 // маленький хелпер: показать список карточек в #gallery
 function showMainMenu() {
   currentScreen = "main";
+    setBreadcrumbVisible(false);
+  setBreadcrumbSection("");
   renderGallery(galleryEl, MAIN_MENU, {
     onSelect: (id) => {
       if (id === "section_arch") showArchGallery();
       if (id === "section_insets") showInsetsGallery();
-      setBreadcrumbVisible(false);
-setBreadcrumbSection("");
+
     }
   });
 
@@ -318,23 +319,27 @@ function showArchGallery() {
   renderGallery(galleryEl, MODELS, { onSelect: viewer.openModelById });
   viewer.showGallery();
   setBreadcrumbVisible(true);
-setBreadcrumbSection("Архитектурные детали");
+  setBreadcrumbSection("Архитектурные детали");
 }
 
 // экран “врезок” = временно только мольберт
 function showInsetsGallery() {
   currentScreen = "insets";
 
+  // ✅ В разделе breadcrumb виден
+  setBreadcrumbVisible(true);
+  setBreadcrumbSection("Врезки");
+
   // Чтобы у карточки мольберта было настоящее preview — подцепим его из MODELS, если найдём
   const molbertMeta = MODELS.find((m) => m.id === "molbert");
   if (molbertMeta && molbertMeta.preview) {
     TEMP_INSETS[0].preview = molbertMeta.preview;
-    setBreadcrumbVisible(true);
-setBreadcrumbSection("Врезки");
   }
 
   renderGallery(galleryEl, INSETS, { onSelect: insetViewer.openById });
-  viewer.showGallery();
+
+  // ✅ показываем экран галереи (врезки)
+  insetViewer.showGallery();
 }
 
 // старт — показываем главное меню
