@@ -112,6 +112,17 @@ function setupUiHandlers() {
     const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
     currentOpacity = Math.max(0, Math.min(1, v / 100));    // 0..1
     applyOpacityToControlled();
+      // ✅ Важно: на телефоне не отдаём тач/drag дальше (в canvas), иначе ползунок не тянется
+  if (dom.insetOpacitySlider) {
+    const stop = (e) => {
+      e.stopPropagation();
+    };
+
+    dom.insetOpacitySlider.addEventListener("pointerdown", stop, { passive: true });
+    dom.insetOpacitySlider.addEventListener("touchstart", stop, { passive: true });
+    dom.insetOpacitySlider.addEventListener("touchmove", stop, { passive: true });
+  }
+
   });
 }
 
