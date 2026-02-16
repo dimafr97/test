@@ -591,6 +591,15 @@ body.inset-mode #videoOverlay {
   text-align: center;
 }
 
+/* ✅ Ползунок виден только в режиме "Врезки" */
+body.inset-mode #insetOpacityRow {
+  display: flex !important;
+}
+
+/* Лёгкий стиль для range, чтобы выглядел аккуратно */
+#insetOpacitySlider {
+  accent-color: #8888ff;
+}
 
 
 
@@ -646,6 +655,13 @@ body.inset-mode #videoOverlay {
           <button class="btn nav-btn" id="backBtn">Галерея</button>
           <button class="btn nav-btn" id="nextBtn">Следующая</button>
         </div>
+
+        <!-- ✅ Ползунок прозрачности (только для Врезок) -->
+<div class="viewer-toolbar-row" id="insetOpacityRow" style="display:none; gap:10px; align-items:center;">
+  <div style="font-size:12px; opacity:.75; min-width:110px;">Прозрачность</div>
+  <input id="insetOpacitySlider" type="range" min="0" max="100" value="100" style="flex:1;">
+</div>
+
 
         <div class="viewer-toolbar-row viewer-tabs-row">
           <div class="viewer-tabs">
