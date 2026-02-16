@@ -212,8 +212,10 @@ const videoEmptyEl = document.getElementById("videoEmpty"); // ADDED
 
   const statusEl = document.getElementById("status");
   const breadcrumbBar = document.getElementById("breadcrumbBar");
-const breadcrumbMenuBtn = document.getElementById("breadcrumbMenuBtn");
+const breadcrumbBackBtn = document.getElementById("breadcrumbBackBtn");
 const breadcrumbSectionLabel = document.getElementById("breadcrumbSectionLabel");
+  const brandBlock = document.getElementById("brandBlock");
+
 
   window.debugLog = { textContent: "" };
 
@@ -295,12 +297,18 @@ function setBreadcrumbSection(title) {
   breadcrumbSectionLabel.textContent = title || "";
 }
 
+  function setBrandVisible(visible) {
+  if (!brandBlock) return;
+  brandBlock.style.display = visible ? "block" : "none";
+}
+
 
 // маленький хелпер: показать список карточек в #gallery
 function showMainMenu() {
   currentScreen = "main";
     setBreadcrumbVisible(false);
   setBreadcrumbSection("");
+    setBrandVisible(true);
   renderGallery(galleryEl, MAIN_MENU, {
     onSelect: (id) => {
       if (id === "section_arch") showArchGallery();
@@ -318,6 +326,7 @@ function showArchGallery() {
   currentScreen = "arch";
   renderGallery(galleryEl, MODELS, { onSelect: viewer.openModelById });
   viewer.showGallery();
+  setBrandVisible(false);
   setBreadcrumbVisible(true);
   setBreadcrumbSection("Архитектурные детали");
 }
@@ -327,7 +336,8 @@ function showInsetsGallery() {
   currentScreen = "insets";
 
   // ✅ В разделе breadcrumb виден
-  setBreadcrumbVisible(true);
+  setBrandVisible(false);     // ✅ бренд скрываем в разделе
+  setBreadcrumbVisible(true); // ✅ показываем “← Врезки”
   setBreadcrumbSection("Врезки");
 
   // Чтобы у карточки мольберта было настоящее preview — подцепим его из MODELS, если найдём
@@ -344,9 +354,10 @@ function showInsetsGallery() {
 
 // старт — показываем главное меню
 showMainMenu();
-  breadcrumbMenuBtn?.addEventListener("click", () => {
+breadcrumbBackBtn?.addEventListener("click", () => {
   showMainMenu();
 });
+
 
 
 // ✅ (опционально) сделать кликабельным заголовок, чтобы всегда возвращаться в главное меню
