@@ -113,15 +113,41 @@ function setupUiHandlers() {
     currentOpacity = Math.max(0, Math.min(1, v / 100));    // 0..1
     applyOpacityToControlled();
       // ✅ Важно: на телефоне не отдаём тач/drag дальше (в canvas), иначе ползунок не тянется
-  if (dom.insetOpacitySlider) {
-    const stop = (e) => {
-      e.stopPropagation();
-    };
+if (dom.insetOpacitySlider) {
+  // ✅ 1) "Подхватываем" ползунок по месту касания.
+  // Это решает проблему, когда бегунок стоит в самом начале и не тянется.
+  const snapToPointer = (e) => {
+    const el = dom.insetOpacitySlider;
+    const rect = el.getBoundingClientRect();
 
-    dom.insetOpacitySlider.addEventListener("pointerdown", stop, { passive: true });
-    dom.insetOpacitySlider.addEventListener("touchstart", stop, { passive: true });
-    dom.insetOpacitySlider.addEventListener("touchmove", stop, { passive: true });
-  }
+    // pointer events дают clientX и на мобилке, и на десктопе
+    const x = Math.min(rect.right, Math.max(rect.left, e.clientX));
+    const t = (x - rect.left) / rect.width; // 0..1
+
+    const min = Number(el.min || 0);
+    const max = Number(el.max || 100);
+    const value = Math.round(min + t * (max - min));
+
+    el.value = String(value);
+
+    // применяем сразу
+    currentOpacity = Math.max(0, Math.min(1, value / 100));
+    applyOpacityToControlled();
+  };
+
+  // ✅ 2) Не отдаём событие в canvas (иначе тач начинает вращать сцену)
+  const stop = (e) => {
+    e.stopPropagation();
+  };
+
+  // ВАЖНО: сначала snap, потом stop
+  dom.insetOpacitySlider.addEventListener("pointerdown", snapToPointer, { passive: true });
+  dom.insetOpacitySlider.addEventListener("pointerdown", stop, { passive: true });
+
+  // touchstart/touchmove можно оставить как у тебя (это не мешает)
+  dom.insetOpacitySlider.addEventListener("touchstart", stop, { passive: true });
+  dom.insetOpacitySlider.addEventListener("touchmove", stop, { passive: true });
+}
 
   });
 }
