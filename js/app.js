@@ -215,6 +215,8 @@ const videoEmptyEl = document.getElementById("videoEmpty"); // ADDED
 const breadcrumbBackBtn = document.getElementById("breadcrumbBackBtn");
 const breadcrumbSectionLabel = document.getElementById("breadcrumbSectionLabel");
   const brandBlock = document.getElementById("brandBlock");
+  const headerCenterTitle = document.getElementById("headerCenterTitle");
+
 
 
   window.debugLog = { textContent: "" };
@@ -293,9 +295,10 @@ function setBreadcrumbVisible(visible) {
 }
 
 function setBreadcrumbSection(title) {
-  if (!breadcrumbSectionLabel) return;
-  breadcrumbSectionLabel.textContent = title || "";
+  if (!headerCenterTitle) return;
+  headerCenterTitle.textContent = title || "";
 }
+
 
   function setBrandVisible(visible) {
   if (!brandBlock) return;
