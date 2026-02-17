@@ -76,6 +76,38 @@ function applyOpacityToControlled() {
   }
 }
 
+// ✅ Применить “плоские” цвета материалам сечений (например "2" и "3")
+// meta.materialColors ожидается как объект: { "2": "#ff3b30", "3": "#34c759" }
+function applyInsetColors(root, meta) {
+  if (!root || !meta || !meta.materialColors) return;
+
+  const colors = meta.materialColors;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+
+    for (const m of mats) {
+      if (!m) continue;
+
+      const key = String(m.name);
+      const hex = colors[key];
+      if (!hex) continue;
+
+      // ✅ у PBR материалов есть .color
+      if (m.color) m.color.set(hex);
+
+      // ✅ делаем “матовый пластик”, чтобы цвет выглядел чисто и стабильно
+      if ("metalness" in m) m.metalness = 0;
+      if ("roughness" in m) m.roughness = 1;
+
+      m.needsUpdate = true;
+    }
+  });
+}
+
+
 
 function setupUiHandlers() {
   const { prevBtn, nextBtn, backBtn } = dom;
@@ -167,22 +199,27 @@ loadModel(meta.sourceId || meta.id, {
 })
 
   .then(({ root }) => {
+    // ✅ 1) сначала применяем цвета сечений (если они заданы в meta)
+    applyInsetColors(root, meta);
+
+    // ✅ 2) показываем модель в threeViewer
     threeSetModel(root);
 
-    // ✅ Находим материалы, которыми управляет ползунок (в твоём случае "3")
+    // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
     controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
 
-    // ✅ Применяем текущую прозрачность (по умолчанию 1)
+    // ✅ 4) применяем текущую прозрачность
     applyOpacityToControlled();
 
-    // ✅ Для контроля можно показать статус (можно потом убрать)
+    // ✅ статус (можно оставить)
     if (controlledMaterials.length === 0) {
       setStatus(`Материал "${meta.opacityMaterialName}" не найден`);
     } else {
-      setStatus(""); // или: setStatus(`Материал "${meta.opacityMaterialName}" найден (${controlledMaterials.length})`);
+      setStatus("");
     }
 
     hideLoading();
+
   })
 
     .catch((err) => {
