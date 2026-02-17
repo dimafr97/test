@@ -243,6 +243,15 @@ video: [
       envIntensity: 0.75
     }
 },
+
+    {
+  id: "inset_1_source",
+  name: "Врезка 1",
+  desc: "Композиция пересекающихся примитивов",
+  url: `${BASE}models/1.gltf`,
+  textures: null // текстур нет
+},
+  
 {
   id: "molbert",
   name: "Мольберт",
