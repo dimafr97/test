@@ -86,30 +86,69 @@ export function enableEdges(root) {
 
   clearEdges();
 
+  // Настройки “инженерного” контура
+  const OUTLINE_SCALE = 1.015; // толщина обводки (подберём, если надо)
+  const OUTLINE_OPACITY = 0.65;
+
+  // “Резкие ребра” (если хочешь оставить)
+  const USE_HARD_EDGES = true;
+  const HARD_EDGES_THRESHOLD = 1; // чем меньше — тем больше ребер (40 для конуса почти ничего не даст)
+
   root.traverse((obj) => {
     if (!obj.isMesh) return;
+    if (!obj.geometry) return;
 
-    // 1) строим геометрию контуров по ребрам
-    const geo = new THREE.EdgesGeometry(obj.geometry, 40);
-
-    // 2) материал линий (полупрозрачный, аккуратный)
-    const mat = new THREE.LineBasicMaterial({
+    // =========================
+    // 1) СИЛУЭТНАЯ ОБВОДКА (BackSide)
+    // =========================
+    const outlineMat = new THREE.MeshBasicMaterial({
       color: 0x000000,
       transparent: true,
-      opacity: 0.55
+      opacity: OUTLINE_OPACITY,
+      side: THREE.BackSide,
+      depthTest: true,
+      depthWrite: false,
     });
 
-    // 3) создаём линии
-    const edges = new THREE.LineSegments(geo, mat);
+    const outlineMesh = new THREE.Mesh(obj.geometry, outlineMat);
 
-    // 4) добавляем как child к мешу
-    // важно: тогда edges наследует позицию/поворот/скейл меша
-    obj.add(edges);
+    // Важно: добавляем как child, чтобы он наследовал трансформы (позицию/поворот/скейл)
+    // И чуть раздуваем, чтобы выглядывал из-под геометрии
+    outlineMesh.scale.set(OUTLINE_SCALE, OUTLINE_SCALE, OUTLINE_SCALE);
 
-    // 5) сохраняем, чтобы потом удалить
-    edgeObjects.push(edges);
+    // Чтобы не ловить z-fighting:
+    outlineMesh.renderOrder = 999;
+
+    obj.add(outlineMesh);
+    edgeObjects.push(outlineMesh);
+
+    // =========================
+    // 2) “РЕЗКИЕ РЕБРА” (EdgesGeometry) — опционально
+    // =========================
+    if (USE_HARD_EDGES) {
+      const geo = new THREE.EdgesGeometry(obj.geometry, HARD_EDGES_THRESHOLD);
+
+      const mat = new THREE.LineBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.35,
+
+        // Ключ: чтобы линии не "исчезали" от глубины/совпадения с поверхностью
+        depthTest: false,
+        depthWrite: false,
+      });
+
+      const edges = new THREE.LineSegments(geo, mat);
+
+      // Рисуем поверх всего
+      edges.renderOrder = 1000;
+
+      obj.add(edges);
+      edgeObjects.push(edges);
+    }
   });
 }
+
 
 export function disableEdges() {
   clearEdges();
