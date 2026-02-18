@@ -65,10 +65,11 @@ function applyOpacityToControlled() {
 
   for (const m of controlledMaterials) {
     if (isOpaque) {
-      // ✅ режим "100%" — возвращаем нормальный рендер
-      m.transparent = false;
+      // ✅ 100% — обычный непрозрачный режим
       m.opacity = 1;
 
+      m.transparent = false;
+      m.alphaHash = false;   // важно выключить!
       m.depthWrite = true;
       m.depthTest = true;
 
@@ -76,17 +77,21 @@ function applyOpacityToControlled() {
       continue;
     }
 
-    // ✅ режим "прозрачность" — делаем так, чтобы было видно пересечения/внутренности
-    m.transparent = true;
+    // ✅ Прозрачность через alphaHash (правильная глубина и пересечения)
     m.opacity = currentOpacity;
 
-    // важно для корректного "просмотра внутрь"
-    m.depthWrite = false;
-    m.depthTest = false;
+    // ВАЖНО: alphaHash работает НЕ в режиме transparent
+    m.transparent = false;
+    m.alphaHash = true;
+
+    // depth оставляем обычным (иначе опять начнутся проблемы)
+    m.depthWrite = true;
+    m.depthTest = true;
 
     m.needsUpdate = true;
   }
 }
+
 
 
 
