@@ -8,6 +8,8 @@ let camera = null;
 let renderer = null;
 
 let currentModel = null;
+let edgeObjects = [];
+
 
 const state = {
   radius: 4.5,
@@ -55,10 +57,20 @@ export function initThree(canvas) {
   });
 }
 
+function clearEdges() {
+  for (const obj of edgeObjects) {
+    if (obj && obj.parent) obj.parent.remove(obj);
+  }
+  edgeObjects = [];
+}
+
+
 export function setModel(root) {
   if (currentModel) {
+    clearEdges();          // ✅ убираем контуры со старой модели
     scene.remove(currentModel);
   }
+
 
   currentModel = root;
   scene.add(currentModel);
@@ -67,6 +79,40 @@ export function setModel(root) {
   state.targetRotY = 0.00;
 
   fitCameraToModel(root);
+}
+
+export function enableEdges(root) {
+  if (!root) return;
+
+  clearEdges();
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    // 1) строим геометрию контуров по ребрам
+    const geo = new THREE.EdgesGeometry(obj.geometry, 40);
+
+    // 2) материал линий (полупрозрачный, аккуратный)
+    const mat = new THREE.LineBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.55
+    });
+
+    // 3) создаём линии
+    const edges = new THREE.LineSegments(geo, mat);
+
+    // 4) добавляем как child к мешу
+    // важно: тогда edges наследует позицию/поворот/скейл меша
+    obj.add(edges);
+
+    // 5) сохраняем, чтобы потом удалить
+    edgeObjects.push(edges);
+  });
+}
+
+export function disableEdges() {
+  clearEdges();
 }
 
 function fitCameraToModel(root) {
