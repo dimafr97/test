@@ -61,36 +61,41 @@ function collectMaterialsByName(root, name) {
 
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
-  const isOpaque = currentOpacity >= 0.999;
-
   for (const m of controlledMaterials) {
-    if (isOpaque) {
-      // ✅ 100% — обычный непрозрачный режим
+    // 1) пока почти непрозрачно — держим как ОПАК (иначе ломает пересечения)
+    const isNearlyOpaque = currentOpacity >= 0.98;
+
+    if (isNearlyOpaque) {
+      m.transparent = false;
       m.opacity = 1;
 
-      m.transparent = false;
-      m.alphaHash = false;   // важно выключить!
       m.depthWrite = true;
       m.depthTest = true;
+
+      // polygonOffset выключаем
+      m.polygonOffset = false;
 
       m.needsUpdate = true;
       continue;
     }
 
-    // ✅ Прозрачность через alphaHash (правильная глубина и пересечения)
+    // 2) настоящий прозрачный режим
+    m.transparent = true;
     m.opacity = currentOpacity;
 
-    // ВАЖНО: alphaHash работает НЕ в режиме transparent
-    m.transparent = false;
-    m.alphaHash = true;
-
-    // depth оставляем обычным (иначе опять начнутся проблемы)
-    m.depthWrite = true;
+    // Важно: чтобы внутри пересечений что-то было видно
+    m.depthWrite = false;
     m.depthTest = true;
+
+    // 3) лёгкий offset, чтобы контакт выглядел стабильнее
+    m.polygonOffset = true;
+    m.polygonOffsetFactor = 1;
+    m.polygonOffsetUnits = 1;
 
     m.needsUpdate = true;
   }
 }
+
 
 
 
