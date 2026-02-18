@@ -1,7 +1,7 @@
 // js/insetsViewer.js
 // Viewer для "Врезок": только 3D, без схем и видео.
 // UI: Prev / Галерея / Next остаётся тем же.
-
+import * as THREE from "three";
 import { setModel as threeSetModel } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
@@ -11,6 +11,8 @@ let currentId = null;
 // ✅ Материалы, которыми управляет ползунок прозрачности
 let controlledMaterials = [];
 let currentOpacity = 1; // 0..1
+// ✅ Меши, для которых мы создаём depth-prepass (невидимые клоны)
+let depthPrepassMeshes = [];
 
 
 export function initInsetsViewer(refs) {
@@ -62,40 +64,83 @@ function collectMaterialsByName(root, name) {
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
-    // 1) пока почти непрозрачно — держим как ОПАК (иначе ломает пересечения)
-    const isNearlyOpaque = currentOpacity >= 0.98;
+    const needTransparent = currentOpacity < 0.9999; // всё что меньше ~1 — прозрачное
 
-    if (isNearlyOpaque) {
+    if (!needTransparent) {
+      // полностью непрозрачный режим
       m.transparent = false;
       m.opacity = 1;
-
       m.depthWrite = true;
       m.depthTest = true;
-
-      // polygonOffset выключаем
-      m.polygonOffset = false;
-
       m.needsUpdate = true;
       continue;
     }
 
-    // 2) настоящий прозрачный режим
+    // прозрачный режим (цвет)
     m.transparent = true;
     m.opacity = currentOpacity;
 
-    // Важно: чтобы внутри пересечений что-то было видно
+    // Ключевой момент:
+    // глубину мы пишем НЕ ЭТИМ материалом, а depth-prepass клоном
     m.depthWrite = false;
     m.depthTest = true;
-
-    // 3) лёгкий offset, чтобы контакт выглядел стабильнее
-    m.polygonOffset = true;
-    m.polygonOffsetFactor = 1;
-    m.polygonOffsetUnits = 1;
 
     m.needsUpdate = true;
   }
 }
 
+
+function clearDepthPrepass() {
+  for (const m of depthPrepassMeshes) {
+    if (m && m.parent) m.parent.remove(m);
+  }
+  depthPrepassMeshes = [];
+}
+
+function buildDepthPrepassForMaterial(root, materialName) {
+  clearDepthPrepass();
+  if (!root || !materialName) return;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+
+    // если меш использует нужный материал — делаем depth-клон
+    const hasTarget = mats.some((m) => m && m.name === materialName);
+    if (!hasTarget) return;
+
+    // Клон меша (геометрия та же, трансформы те же)
+    const depthMesh = new THREE.Mesh(obj.geometry, new THREE.MeshBasicMaterial());
+
+    // Копируем трансформы, чтобы он совпал пиксель-в-пиксель
+    depthMesh.position.copy(obj.position);
+    depthMesh.rotation.copy(obj.rotation);
+    depthMesh.scale.copy(obj.scale);
+
+    // Материал: рисуем ТОЛЬКО глубину, без цвета
+    depthMesh.material.colorWrite = false;   // не рисовать цвет
+    depthMesh.material.depthWrite = true;    // писать глубину
+    depthMesh.material.depthTest = true;
+    depthMesh.material.transparent = false;
+
+    // Чуть-чуть смещаем вглубь, чтобы не было "мигания" из-за совпадения поверхностей
+    depthMesh.material.polygonOffset = true;
+    depthMesh.material.polygonOffsetFactor = 1;
+    depthMesh.material.polygonOffsetUnits = 1;
+
+    // Порядок рендера: depth раньше, прозрачный позже
+    depthMesh.renderOrder = (obj.renderOrder || 0) - 1;
+
+    // Чтобы освещение/материалы не трогать — клон невидимый по цвету, но "реальный" по глубине
+    depthMesh.frustumCulled = obj.frustumCulled;
+
+    // Вставляем клон в того же родителя
+    obj.parent.add(depthMesh);
+
+    depthPrepassMeshes.push(depthMesh);
+  });
+}
 
 
 
@@ -193,6 +238,7 @@ export function showGallery() {
   if (statusEl) statusEl.textContent = "";
   currentId = null;
   exitInsetMode();
+  clearDepthPrepass();
   controlledMaterials = [];
 currentOpacity = 1;
 }
@@ -216,35 +262,37 @@ export function openById(id) {
 
   // загрузка
   showLoading(`Загрузка: ${meta.name}`);
+  clearDepthPrepass();
+controlledMaterials = [];
+
 
 loadModel(meta.sourceId || meta.id, {
   onProgress: (p) => setProgress(p),
   onStatus: (s) => setStatus(s)
 })
 
-  .then(({ root }) => {
-    // ✅ 1) сначала применяем цвета сечений (если они заданы в meta)
-    applyInsetColors(root, meta);
+.then(({ root }) => {
+  // ✅ 1) соберём материалы под ползунок
+  controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
 
-    // ✅ 2) показываем модель в threeViewer
-    threeSetModel(root);
+  // ✅ 2) построим depth-prepass клоны для МЕШЕЙ с этим материалом
+  buildDepthPrepassForMaterial(root, meta.opacityMaterialName);
 
-    // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
-    controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+  // ✅ 3) теперь отправляем в сцену
+  threeSetModel(root);
 
-    // ✅ 4) применяем текущую прозрачность
-    applyOpacityToControlled();
+  // ✅ 4) применяем прозрачность
+  applyOpacityToControlled();
 
-    // ✅ статус (можно оставить)
-    if (controlledMaterials.length === 0) {
-      setStatus(`Материал "${meta.opacityMaterialName}" не найден`);
-    } else {
-      setStatus("");
-    }
+  if (controlledMaterials.length === 0) {
+    setStatus(`Материал "${meta.opacityMaterialName}" не найден`);
+  } else {
+    setStatus("");
+  }
 
-    hideLoading();
+  hideLoading();
+})
 
-  })
 
     .catch((err) => {
       console.error(err);
