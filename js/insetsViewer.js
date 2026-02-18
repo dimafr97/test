@@ -61,28 +61,33 @@ function collectMaterialsByName(root, name) {
 
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
-  for (const m of controlledMaterials) {
-    const needTransparent = currentOpacity < 0.999;
+  const isOpaque = currentOpacity >= 0.999;
 
-    // opacity работает только если transparent=true
-    m.transparent = needTransparent;
+  for (const m of controlledMaterials) {
+    if (isOpaque) {
+      // ✅ режим "100%" — возвращаем нормальный рендер
+      m.transparent = false;
+      m.opacity = 1;
+
+      m.depthWrite = true;
+      m.depthTest = true;
+
+      m.needsUpdate = true;
+      continue;
+    }
+
+    // ✅ режим "прозрачность" — делаем так, чтобы было видно пересечения/внутренности
+    m.transparent = true;
     m.opacity = currentOpacity;
 
-    // ✅ Ключ: НЕ выключаем depthWrite, иначе пересечения “ломаются”
-    m.depthWrite = true;
-    m.depthTest = true;
-
-    // ✅ Самое важное: стабильная “прозрачность” без сортировочных артефактов
-    // (есть в three r152+; у тебя r153 — значит есть)
-    if (needTransparent) {
-      m.alphaHash = true;     // “dithered” transparency
-    } else {
-      m.alphaHash = false;    // на 100% лучше вернуть обычный режим
-    }
+    // важно для корректного "просмотра внутрь"
+    m.depthWrite = false;
+    m.depthTest = false;
 
     m.needsUpdate = true;
   }
 }
+
 
 
 // ✅ Применить “плоские” цвета материалам сечений (например "2" и "3")
