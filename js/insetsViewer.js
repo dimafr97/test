@@ -2,7 +2,12 @@
 // Viewer для "Врезок": только 3D, без схем и видео.
 // UI: Prev / Галерея / Next остаётся тем же.
 import * as THREE from "three";
-import { setModel as threeSetModel } from "./threeViewer.js";
+import { 
+  setModel as threeSetModel,
+  enableEdges,
+  disableEdges
+} from "./threeViewer.js";
+
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
 
@@ -176,6 +181,7 @@ export function showGallery() {
   if (statusEl) statusEl.textContent = "";
   currentId = null;
   exitInsetMode();
+  disableEdges();
   controlledMaterials = [];
 currentOpacity = 1;
 }
@@ -211,6 +217,8 @@ loadModel(meta.sourceId || meta.id, {
 
     // ✅ 2) показываем модель в threeViewer
     threeSetModel(root);
+    enableEdges(root);
+
 
     // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
     controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
