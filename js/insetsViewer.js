@@ -1,7 +1,7 @@
 // js/insetsViewer.js
 // Viewer для "Врезок": только 3D, без схем и видео.
 // UI: Prev / Галерея / Next остаётся тем же.
-
+import * as THREE from "three";
 import { setModel as threeSetModel } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
@@ -62,19 +62,24 @@ function collectMaterialsByName(root, name) {
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
+    if (!m) continue;
+
+    // ✅ рисуем обе стороны (чтобы изнутри тоже было видно)
+    m.side = THREE.DoubleSide;
+
     const needTransparent = currentOpacity < 0.999;
 
     // Важно: opacity работает только если transparent=true
     m.transparent = needTransparent;
     m.opacity = currentOpacity;
 
-    // Чтобы прозрачность выглядела стабильнее:
-    // когда объект прозрачный, глубину лучше не писать
+    // чтобы прозрачность работала адекватно (и видеть "внутри")
     m.depthWrite = !needTransparent;
 
     m.needsUpdate = true;
   }
 }
+
 
 // ✅ Применить “плоские” цвета материалам сечений (например "2" и "3")
 // meta.materialColors ожидается как объект: { "2": "#ff3b30", "3": "#34c759" }
@@ -97,6 +102,8 @@ function applyInsetColors(root, meta) {
 
       // ✅ у PBR материалов есть .color
       if (m.color) m.color.set(hex);
+      m.side = THREE.DoubleSide;
+
 
       // ✅ делаем “матовый пластик”, чтобы цвет выглядел чисто и стабильно
       if ("metalness" in m) m.metalness = 0;
