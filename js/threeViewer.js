@@ -59,10 +59,20 @@ export function initThree(canvas) {
 
 function clearEdges() {
   for (const obj of edgeObjects) {
-    if (obj && obj.parent) obj.parent.remove(obj);
+    if (!obj) continue;
+
+    if (obj.parent) obj.parent.remove(obj);
+
+    // освобождаем память GPU
+    if (obj.geometry) obj.geometry.dispose?.();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose?.());
+      else obj.material.dispose?.();
+    }
   }
   edgeObjects = [];
 }
+
 
 
 export function setModel(root) {
@@ -86,21 +96,26 @@ export function enableEdges(root) {
 
   clearEdges();
 
-  // Настройки “инженерного” контура
-  const OUTLINE_SCALE = 1.015; // толщина обводки (подберём, если надо)
-  const OUTLINE_OPACITY = 0.65;
-
-  // “Резкие ребра” (если хочешь оставить)
-  const USE_HARD_EDGES = true;
-  const HARD_EDGES_THRESHOLD = 1; // чем меньше — тем больше ребер (40 для конуса почти ничего не даст)
-
+  // 1) Сначала собираем ТОЛЬКО исходные меши (до добавления контуров)
+  const baseMeshes = [];
   root.traverse((obj) => {
     if (!obj.isMesh) return;
+    // если это уже наш хелпер — пропускаем (на всякий случай)
+    if (obj.userData && obj.userData.__edgeHelper) return;
     if (!obj.geometry) return;
+    baseMeshes.push(obj);
+  });
 
-    // =========================
-    // 1) СИЛУЭТНАЯ ОБВОДКА (BackSide)
-    // =========================
+  // Настройки
+  const OUTLINE_SCALE = 1.015;
+  const OUTLINE_OPACITY = 0.65;
+
+  const USE_HARD_EDGES = true;
+  const HARD_EDGES_THRESHOLD = 1;
+
+  // 2) Теперь добавляем контуры по списку (уже НЕ в traverse)
+  for (const obj of baseMeshes) {
+    // ====== A) СИЛУЭТ (BackSide outline) ======
     const outlineMat = new THREE.MeshBasicMaterial({
       color: 0x000000,
       transparent: true,
@@ -111,20 +126,16 @@ export function enableEdges(root) {
     });
 
     const outlineMesh = new THREE.Mesh(obj.geometry, outlineMat);
-
-    // Важно: добавляем как child, чтобы он наследовал трансформы (позицию/поворот/скейл)
-    // И чуть раздуваем, чтобы выглядывал из-под геометрии
-    outlineMesh.scale.set(OUTLINE_SCALE, OUTLINE_SCALE, OUTLINE_SCALE);
-
-    // Чтобы не ловить z-fighting:
+    outlineMesh.userData.__edgeHelper = true;   // <— метка!
     outlineMesh.renderOrder = 999;
+
+    // важно: делаем как child, чтобы наследовал трансформы
+    outlineMesh.scale.set(OUTLINE_SCALE, OUTLINE_SCALE, OUTLINE_SCALE);
 
     obj.add(outlineMesh);
     edgeObjects.push(outlineMesh);
 
-    // =========================
-    // 2) “РЕЗКИЕ РЕБРА” (EdgesGeometry) — опционально
-    // =========================
+    // ====== B) РЕЗКИЕ РЕБРА (EdgesGeometry) — опционально ======
     if (USE_HARD_EDGES) {
       const geo = new THREE.EdgesGeometry(obj.geometry, HARD_EDGES_THRESHOLD);
 
@@ -132,22 +143,20 @@ export function enableEdges(root) {
         color: 0x000000,
         transparent: true,
         opacity: 0.35,
-
-        // Ключ: чтобы линии не "исчезали" от глубины/совпадения с поверхностью
         depthTest: false,
         depthWrite: false,
       });
 
       const edges = new THREE.LineSegments(geo, mat);
-
-      // Рисуем поверх всего
+      edges.userData.__edgeHelper = true;       // <— метка!
       edges.renderOrder = 1000;
 
       obj.add(edges);
       edgeObjects.push(edges);
     }
-  });
+  }
 }
+
 
 
 export function disableEdges() {
