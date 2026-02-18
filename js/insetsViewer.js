@@ -13,6 +13,10 @@ let controlledMaterials = [];
 let currentOpacity = 1; // 0..1
 // ✅ Меши, для которых мы создаём depth-prepass (невидимые клоны)
 let depthPrepassMeshes = [];
+let currentRoot = null;           // текущая загруженная модель (root)
+let currentOpacityMatName = null; // имя материала, которым управляем ("1")
+const PREPASS_THRESHOLD = 0.95; // ниже этого значения prepass выключаем (чтобы видеть "внутри")
+
 
 
 export function initInsetsViewer(refs) {
@@ -142,6 +146,19 @@ function buildDepthPrepassForMaterial(root, materialName) {
   });
 }
 
+function updateDepthPrepass() {
+  // нет модели — нечего делать
+  if (!currentRoot || !currentOpacityMatName) return;
+
+  // если прозрачность реальная — prepass мешает видеть "внутри"
+  if (currentOpacity < PREPASS_THRESHOLD) {
+    clearDepthPrepass();
+    return;
+  }
+
+  // если почти непрозрачно — можно включить prepass
+  buildDepthPrepassForMaterial(currentRoot, currentOpacityMatName);
+}
 
 
 
@@ -210,10 +227,13 @@ function setupUiHandlers() {
   dom.tabVideoBtn?.classList.remove("active");
     // ✅ Ползунок прозрачности (работает только для выбранного материала, например "3")
 dom.insetOpacitySlider?.addEventListener("input", () => {
-  const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
-  currentOpacity = Math.max(0, Math.min(1, v / 100));    // 0..1
+  const v = Number(dom.insetOpacitySlider.value || 100);
+  currentOpacity = Math.max(0, Math.min(1, v / 100));
+
   applyOpacityToControlled();
+  updateDepthPrepass(); // ✅ ВАЖНО
 });
+
 // ✅ Важно: на телефоне не отдаём тач/drag дальше (в canvas), иначе первый drag не цепляется
 if (dom.insetOpacitySlider) {
   const stop = (e) => e.stopPropagation();
@@ -241,6 +261,9 @@ export function showGallery() {
   clearDepthPrepass();
   controlledMaterials = [];
 currentOpacity = 1;
+  currentRoot = null;
+currentOpacityMatName = null;
+
 }
 
 export function openById(id) {
@@ -272,11 +295,14 @@ loadModel(meta.sourceId || meta.id, {
 })
 
 .then(({ root }) => {
+  currentRoot = root;
+currentOpacityMatName = meta.opacityMaterialName;
+
   // ✅ 1) соберём материалы под ползунок
   controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
 
   // ✅ 2) построим depth-prepass клоны для МЕШЕЙ с этим материалом
-  buildDepthPrepassForMaterial(root, meta.opacityMaterialName);
+updateDepthPrepass();
 
   // ✅ 3) теперь отправляем в сцену
   threeSetModel(root);
