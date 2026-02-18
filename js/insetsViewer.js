@@ -64,17 +64,26 @@ function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
     const needTransparent = currentOpacity < 0.999;
 
-    // Важно: opacity работает только если transparent=true
+    // opacity работает только если transparent=true
     m.transparent = needTransparent;
     m.opacity = currentOpacity;
 
-    // Чтобы прозрачность выглядела стабильнее:
-    // когда объект прозрачный, глубину лучше не писать
-    m.depthWrite = !needTransparent;
+    // ✅ Ключ: НЕ выключаем depthWrite, иначе пересечения “ломаются”
+    m.depthWrite = true;
+    m.depthTest = true;
+
+    // ✅ Самое важное: стабильная “прозрачность” без сортировочных артефактов
+    // (есть в three r152+; у тебя r153 — значит есть)
+    if (needTransparent) {
+      m.alphaHash = true;     // “dithered” transparency
+    } else {
+      m.alphaHash = false;    // на 100% лучше вернуть обычный режим
+    }
 
     m.needsUpdate = true;
   }
 }
+
 
 // ✅ Применить “плоские” цвета материалам сечений (например "2" и "3")
 // meta.materialColors ожидается как объект: { "2": "#ff3b30", "3": "#34c759" }
