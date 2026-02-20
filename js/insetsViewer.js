@@ -66,26 +66,26 @@ function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // ✅ чтобы видеть обратные стороны
+    // 1) Врезки: хотим видеть "внутри", поэтому рисуем обе стороны
     m.side = THREE.DoubleSide;
 
-    // ✅ один режим на весь диапазон
-    // всегда считаем материал прозрачным (даже если opacity почти 1)
+    // 2) Всегда работаем в одном режиме (как ты хочешь: весь диапазон)
+    //    Без переключения на "opaque mode".
     m.transparent = true;
+    m.opacity = currentOpacity;
 
-    // ограничим сверху, чтобы не попадать в "почти 1"
-    // (но визуально 0.9999 = 100%)
-    const o = Math.max(0, Math.min(0.9999, currentOpacity));
-    m.opacity = o;
-
-    // ✅ КЛЮЧ: цвет рисуем, но глубину НЕ пишем
-    // глубину за нас пишет depth-prepass клон
+    // 3) КЛЮЧ: не пишем глубину, иначе "внутри" пропадает
     m.depthTest = true;
     m.depthWrite = false;
+
+    // 4) Не включаем forceSinglePass (пусть three сам сделает два прохода для DoubleSide)
+    //    Если где-то раньше выставлял — принудительно вернём "норму"
+    m.forceSinglePass = false;
 
     m.needsUpdate = true;
   }
 }
+
 function clearDepthPrepass() {
   for (const m of depthPrepassMeshes) {
     if (m && m.parent) m.parent.remove(m);
