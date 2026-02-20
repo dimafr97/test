@@ -64,17 +64,33 @@ function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // ✅ рисуем обе стороны (чтобы изнутри тоже было видно)
+    // всегда рисуем обе стороны
     m.side = THREE.DoubleSide;
 
     const needTransparent = currentOpacity < 0.999;
 
-    // Важно: opacity работает только если transparent=true
-    m.transparent = needTransparent;
+    if (!needTransparent) {
+      // полностью непрозрачный режим
+      m.transparent = false;
+      m.opacity = 1;
+      m.depthWrite = true;
+      m.depthTest = true;
+      m.needsUpdate = true;
+      continue;
+    }
+
+    // прозрачный режим
+    m.transparent = true;
     m.opacity = currentOpacity;
 
-    // чтобы прозрачность работала адекватно (и видеть "внутри")
-    m.depthWrite = !needTransparent;
+    // ВАЖНО:
+    // глубину пишем, чтобы сохранялся объем
+    m.depthWrite = true;
+    m.depthTest = true;
+
+    // отключаем сортировку по объекту
+    // Three будет сортировать по треугольникам внутри
+    m.forceSinglePass = true;
 
     m.needsUpdate = true;
   }
