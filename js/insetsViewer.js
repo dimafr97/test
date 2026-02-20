@@ -64,38 +64,39 @@ function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // всегда рисуем обе стороны
+    // Всегда рисуем обе стороны (у тебя это важно)
     m.side = THREE.DoubleSide;
 
-    const needTransparent = currentOpacity < 0.999;
+    const a = currentOpacity;
 
-    if (!needTransparent) {
-      // полностью непрозрачный режим
-      m.transparent = false;
+    // 1) Почти непрозрачный режим — обычный OPAQUE
+    if (a >= 0.9999) {
+      m.transparent = false;   // важно: НЕ transparent
+      m.alphaHash = false;     // выключаем дизеринг
       m.opacity = 1;
+
       m.depthWrite = true;
       m.depthTest = true;
+
       m.needsUpdate = true;
       continue;
     }
 
-    // прозрачный режим
-    m.transparent = true;
-    m.opacity = currentOpacity;
+    // 2) Прозрачность через alphaHash (стохастический “дизеринг”)
+    // Это даёт ощущение прозрачности, но depth работает как у непрозрачных
+    m.transparent = false;  // важно: оставляем false
+    m.alphaHash = true;     // ключевой переключатель
+    m.opacity = a;          // ползунок 0..1
 
-    // ВАЖНО:
-    // глубину пишем, чтобы сохранялся объем
     m.depthWrite = true;
     m.depthTest = true;
 
-    // отключаем сортировку по объекту
-    // Three будет сортировать по треугольникам внутри
-    m.forceSinglePass = true;
+    // forceSinglePass тут НЕ нужен — убираем.
+    // m.forceSinglePass = true;
 
     m.needsUpdate = true;
   }
 }
-
 
 // ✅ Применить “плоские” цвета материалам сечений (например "2" и "3")
 // meta.materialColors ожидается как объект: { "2": "#ff3b30", "3": "#34c759" }
