@@ -59,47 +59,6 @@ function collectMaterialsByName(root, name) {
   return Array.from(new Set(out));
 }
 
-// ✅ Разделить (clone) экземпляры материала по имени.
-// Нужно, если один и тот же material-шарится между разными mesh,
-// а мы хотим, чтобы у каждого меша был СВОЙ экземпляр,
-// но с тем же именем (например "1").
-function splitMaterialInstancesByName(root, name) {
-  if (!root || !name) return;
-
-  root.traverse((obj) => {
-    if (!obj.isMesh || !obj.material) return;
-
-    // material может быть массивом (multi-material)
-    if (Array.isArray(obj.material)) {
-      let changed = false;
-
-      const newMats = obj.material.map((m) => {
-        if (!m) return m;
-        if (m.name !== name) return m;
-
-        const cloned = m.clone();
-        cloned.name = m.name; // важно оставить имя "1"
-        cloned.needsUpdate = true;
-        changed = true;
-        return cloned;
-      });
-
-      if (changed) obj.material = newMats;
-      return;
-    }
-
-    // обычный одиночный материал
-    const m = obj.material;
-    if (!m || m.name !== name) return;
-
-    const cloned = m.clone();
-    cloned.name = m.name; // "1"
-    cloned.needsUpdate = true;
-
-    obj.material = cloned;
-  });
-}
-
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
@@ -262,31 +221,29 @@ loadModel(meta.sourceId || meta.id, {
   onStatus: (s) => setStatus(s)
 })
 
-.then(({ root }) => {
-  // ✅ 1) применяем цвета сечений ("3","4"), если заданы
-  applyInsetColors(root, meta);
+  .then(({ root }) => {
+    // ✅ 1) сначала применяем цвета сечений (если они заданы в meta)
+    applyInsetColors(root, meta);
 
-  // ✅ 2) РАЗДЕЛЯЕМ экземпляры материала под ползунок (например "1")
-  // чтобы куб и конус не шарили один и тот же material-объект
-  splitMaterialInstancesByName(root, meta.opacityMaterialName);
+    // ✅ 2) показываем модель в threeViewer
+    threeSetModel(root);
 
-  // ✅ 3) собираем материалы, которыми управляет ползунок (это будут УЖЕ разные инстансы)
-  controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+    // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
+    controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
 
-  // ✅ 4) показываем модель
-  threeSetModel(root);
+    // ✅ 4) применяем текущую прозрачность
+    applyOpacityToControlled();
 
-  // ✅ 5) применяем прозрачность
-  applyOpacityToControlled();
+    // ✅ статус (можно оставить)
+    if (controlledMaterials.length === 0) {
+      setStatus(`Материал "${meta.opacityMaterialName}" не найден`);
+    } else {
+      setStatus("");
+    }
 
-  if (controlledMaterials.length === 0) {
-    setStatus(`Материал "${meta.opacityMaterialName}" не найден`);
-  } else {
-    setStatus("");
-  }
+    hideLoading();
 
-  hideLoading();
-})
+  })
 
     .catch((err) => {
       console.error(err);
