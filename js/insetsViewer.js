@@ -125,7 +125,7 @@ function splitMultiMaterialMeshes(root, targetMaterialName) {
   });
 }
 
-function markOitTransparentMeshes(root, materialName, opacity01) {
+function markOitTransparentMeshes(root, materialName) {
   if (!root) return;
 
   root.traverse((obj) => {
@@ -133,7 +133,7 @@ function markOitTransparentMeshes(root, materialName, opacity01) {
 
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
 
-    // найдём индексы материалов с именем materialName ("1")
+    // индексы материалов с именем materialName ("1")
     const targetIdx = [];
     for (let i = 0; i < mats.length; i++) {
       const m = mats[i];
@@ -142,47 +142,44 @@ function markOitTransparentMeshes(root, materialName, opacity01) {
 
     if (targetIdx.length === 0) {
       obj.userData.oitTransparent = false;
+      delete obj.userData._oitMatIndex;
       return;
     }
 
-    // определим, есть ли в геометрии группы именно с target materialIndex
+    // если у геометрии есть groups — проверим что есть группы именно target материала
     const groups = obj.geometry?.groups || [];
     const usesTargetGroups =
       groups.length > 0
-        ? groups.some(g => targetIdx.includes(g.materialIndex))
-        : true; // если групп нет — значит это single-material mesh
+        ? groups.some((g) => targetIdx.includes(g.materialIndex))
+        : true; // single-material mesh
 
-    // ВАЖНО: когда opacity почти 1 — делаем opaque (иначе 100% никогда не станет реально opaque)
-    const isReallyTransparent = opacity01 < 0.9995;
+    // ✅ ВАЖНО: без зависимости от opacity — "тела" всегда идут в OIT
+    obj.userData.oitTransparent = usesTargetGroups;
 
-    obj.userData.oitTransparent = usesTargetGroups && isReallyTransparent;
-
-    // запомним, какой материал брать для uColor/uOpacity в OIT
+    // запомним индекс материала, чтобы threeViewer мог взять цвет/opacity
     obj.userData._oitMatIndex = targetIdx[0];
   });
 }
 
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
-  // В OIT лучше НЕ давать ровно 1.0, чтобы не было эффекта "как opaque"
-  const op = Math.max(0, Math.min(0.9999, currentOpacity));
+  const op = Math.max(0, Math.min(1, currentOpacity));
 
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // хотим видеть "внутри"
+    // две стороны, чтобы изнутри тоже было видно
     m.side = THREE.DoubleSide;
 
-    // ✅ Один режим на весь диапазон
-    m.transparent = true;
+    // ✅ просто храним opacity в материале
     m.opacity = op;
 
-    // ✅ Ключ для "видно внутри/сквозь"
-    m.depthTest = true;
-    m.depthWrite = false;
+    // ✅ НЕ включаем стандартную прозрачность three.js (OIT сделает прозрачность сам)
+    m.transparent = false;
 
-    // на всякий случай сбрасываем, чтобы не было странностей
-    m.forceSinglePass = false;
+    // обычная глубина
+    m.depthTest = true;
+    m.depthWrite = true;
 
     m.needsUpdate = true;
   }
@@ -262,7 +259,7 @@ dom.insetOpacitySlider?.addEventListener("input", () => {
   // обновляем OIT-флаги каждый раз
   if (currentRoot) {
     const meta = getInsetMeta(currentId);
-    if (meta) markOitTransparentMeshes(currentRoot, meta.opacityMaterialName, currentOpacity);
+    if (meta) markOitTransparentMeshes(currentRoot, meta.opacityMaterialName);
   }
 
   applyOpacityToControlled();
@@ -332,7 +329,7 @@ loadModel(meta.sourceId || meta.id, {
   controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
 
   // 3) включаем/обновляем OIT-флаги с учётом текущей прозрачности
-  markOitTransparentMeshes(root, meta.opacityMaterialName, currentOpacity);
+  markOitTransparentMeshes(root, meta.opacityMaterialName);
 
   // 4) ставим модель в сцену
   threeSetModel(root);
