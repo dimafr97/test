@@ -23,6 +23,8 @@ let quadMesh = null;
 
 let accumMat = null;
 let revealMat = null;
+let accumUniforms = null;
+let revealUniforms = null;
 let compositeMat = null;
 
 const state = {
@@ -87,6 +89,8 @@ export function setModel(root) {
 
   currentModel = root;
   scene.add(currentModel);
+    // ✅ чтобы OIT брал цвет/opacity из материала на каждом меше
+  attachOitPerMeshUniforms(currentModel);
 
   state.targetRotX = 0.10;
   state.targetRotY = 0.00;
@@ -420,6 +424,42 @@ function buildOitMaterials() {
     depthTest: false,
     depthWrite: false,
     transparent: false,
+    
+  });
+  accumUniforms = accumMat.uniforms;
+revealUniforms = revealMat.uniforms;
+}
+
+function attachOitPerMeshUniforms(root) {
+  if (!root) return;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    // чистим старое, чтобы не висело на других моделях
+    obj.onBeforeRender = null;
+
+    if (!obj.userData?.oitTransparent) return;
+
+    obj.onBeforeRender = () => {
+      if (!accumUniforms || !revealUniforms) return;
+
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const idx = typeof obj.userData._oitMatIndex === "number" ? obj.userData._oitMatIndex : 0;
+      const srcMat = mats[idx] || mats[0];
+
+      // цвет
+      if (srcMat && srcMat.color) {
+        accumUniforms.uColor.value.copy(srcMat.color);
+      } else {
+        accumUniforms.uColor.value.setRGB(1, 1, 1);
+      }
+
+      // opacity (из твоего ползунка, ты пишешь в material.opacity)
+      const op = srcMat && typeof srcMat.opacity === "number" ? srcMat.opacity : 1;
+      accumUniforms.uOpacity.value = op;
+      revealUniforms.uOpacity.value = op;
+    };
   });
 }
 
