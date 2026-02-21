@@ -436,29 +436,37 @@ function attachOitPerMeshUniforms(root) {
   root.traverse((obj) => {
     if (!obj.isMesh) return;
 
-    // чистим старое, чтобы не висело на других моделях
-    obj.onBeforeRender = null;
+    // ✅ если меш НЕ прозрачный для OIT — просто убираем наш хук
+    if (!obj.userData?.oitTransparent) {
+      // В r153 onBeforeRender должен быть функцией (или унаследованной).
+      // Поэтому НЕ null, а delete (вернётся прототипная функция).
+      delete obj.onBeforeRender;
+      return;
+    }
 
-    if (!obj.userData?.oitTransparent) return;
+    // ✅ прозрачный OIT-меш: ставим хук, который прокидывает uColor/uOpacity
+    obj.onBeforeRender = (renderer, scene, camera, geometry, material) => {
+      try {
+        const m = material;
+        if (!m) return;
 
-    obj.onBeforeRender = () => {
-      if (!accumUniforms || !revealUniforms) return;
+        // multi-material: берём индекс, который пометили в insetsViewer
+        const idx = obj.userData?._oitMatIndex ?? 0;
+        const mats = Array.isArray(m) ? m : [m];
+        const srcMat = mats[Math.min(idx, mats.length - 1)] || mats[0];
 
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      const idx = typeof obj.userData._oitMatIndex === "number" ? obj.userData._oitMatIndex : 0;
-      const srcMat = mats[idx] || mats[0];
+        if (!srcMat) return;
 
-      // цвет
-      if (srcMat && srcMat.color) {
-        accumUniforms.uColor.value.copy(srcMat.color);
-      } else {
-        accumUniforms.uColor.value.setRGB(1, 1, 1);
+        // Эти значения читает OIT-шейдер (accum/reveal)
+        if (m.userData && m.userData._oitUniforms) {
+          const u = m.userData._oitUniforms;
+          if (srcMat.color && u.uColor) u.uColor.value.copy(srcMat.color);
+          if (u.uOpacity) u.uOpacity.value = srcMat.opacity ?? 1;
+        }
+      } catch (e) {
+        // на всякий случай не валим рендер
+        console.warn("OIT onBeforeRender error", e);
       }
-
-      // opacity (из твоего ползунка, ты пишешь в material.opacity)
-      const op = srcMat && typeof srcMat.opacity === "number" ? srcMat.opacity : 1;
-      accumUniforms.uOpacity.value = op;
-      revealUniforms.uOpacity.value = op;
     };
   });
 }
