@@ -8,6 +8,19 @@ let camera = null;
 let renderer = null;
 
 let currentModel = null;
+let oitEnabled = false;
+
+let opaqueRT = null;
+let accumRT = null;
+let revealRT = null;
+
+let quadScene = null;
+let quadCamera = null;
+let quadMesh = null;
+
+let accumMat = null;
+let revealMat = null;
+let compositeMat = null;
 
 const state = {
   radius: 4.5,
@@ -19,6 +32,11 @@ const state = {
   targetRotX: 0.10,
   targetRotY: 0.00,
 };
+
+export function setOitEnabled(v) {
+  oitEnabled = !!v;
+  if (oitEnabled) ensureOit();
+}
 
 export function initThree(canvas) {
   scene = new THREE.Scene();
@@ -51,8 +69,274 @@ export function initThree(canvas) {
     state.rotY += (state.targetRotY - state.rotY) * 0.22;
 
     updateCameraPosition();
-    renderer.render(scene, camera);
+    if (!oitEnabled) {
+  renderer.render(scene, camera);
+} else {
+  renderOit();
+}
   });
+}
+
+function renderOit() {
+  if (!currentModel) {
+    renderer.setRenderTarget(null);
+    renderer.clear();
+    return;
+  }
+
+  ensureOit();
+
+  // --- 1) Opaque pass (сечения и всё НЕ oitTransparent) ---
+  setVisibilityForOit(false);
+
+  renderer.setRenderTarget(opaqueRT);
+  renderer.setClearColor(0x050506, 1);
+  renderer.clear(true, true, false);
+  renderer.render(scene, camera);
+
+  // --- 2) Accum pass (только oitTransparent) ---
+  setVisibilityForOit(true);
+
+  renderer.setRenderTarget(accumRT);
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear(true, false, false);
+
+  // подхватываем цвет/opacity из материала меша через onBeforeRender
+  scene.overrideMaterial = accumMat;
+  renderer.render(scene, camera);
+
+  // --- 3) Reveal pass (только oitTransparent) ---
+  renderer.setRenderTarget(revealRT);
+  renderer.setClearColor(0xffffff, 1);
+  renderer.clear(true, false, false);
+
+  scene.overrideMaterial = revealMat;
+  renderer.render(scene, camera);
+
+  // restore
+  scene.overrideMaterial = null;
+  setVisibilityForOit(null);
+
+  // --- 4) Composite на экран ---
+  renderer.setRenderTarget(null);
+  renderer.setClearColor(0x050506, 1);
+  renderer.clear(true, true, false);
+  renderer.render(quadScene, quadCamera);
+}
+
+// mode:
+// true  -> показываем только oitTransparent
+// false -> показываем только НЕ oitTransparent
+// null  -> показываем всё и убираем onBeforeRender
+function setVisibilityForOit(mode) {
+  currentModel.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    const isOit = !!obj.userData.oitTransparent;
+
+    if (mode === true) obj.visible = isOit;
+    else if (mode === false) obj.visible = !isOit;
+    else obj.visible = true;
+  });
+
+  // Включаем/выключаем прокидывание uColor/uOpacity
+  if (mode === true) {
+    currentModel.traverse((obj) => {
+      if (!obj.isMesh || !obj.userData.oitTransparent) return;
+
+      obj.onBeforeRender = () => {
+        // Т.к. у тебя материал 1 общий на куб/конус — обычно obj.material один.
+        // Если вдруг массив — берём первый, но при желании можно сделать умнее.
+        const mat = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+
+        if (mat?.color && accumMat) accumMat.uniforms.uColor.value.copy(mat.color);
+        if (accumMat) accumMat.uniforms.uOpacity.value = (mat?.opacity ?? 1);
+
+        if (revealMat) revealMat.uniforms.uOpacity.value = (mat?.opacity ?? 1);
+      };
+    });
+  } else if (mode === null) {
+    currentModel.traverse((obj) => {
+      if (!obj.isMesh) return;
+      obj.onBeforeRender = null;
+    });
+  }
+}
+
+function ensureOit() {
+  if (!renderer) return;
+
+  const w = Math.max(1, Math.floor(window.innerWidth));
+  const h = Math.max(1, Math.floor(window.innerHeight));
+
+  // если уже нужный размер — ничего не делаем
+  if (opaqueRT && opaqueRT.width === w && opaqueRT.height === h) return;
+
+  disposeOit();
+
+  // 1) Opaque RT (с depth)
+  opaqueRT = new THREE.WebGLRenderTarget(w, h, {
+    format: THREE.RGBAFormat,
+    type: THREE.UnsignedByteType,
+    depthBuffer: true,
+    stencilBuffer: false,
+  });
+
+  // 2) Accum/Reveal RT (без depth)
+  // В идеале HalfFloat, но на телеграм-webview иногда проще UnsignedByte.
+  // Начнем с UnsignedByte — уже даст правильную "глубину/пересечения".
+  const rtType = THREE.UnsignedByteType;
+
+  accumRT = new THREE.WebGLRenderTarget(w, h, {
+    format: THREE.RGBAFormat,
+    type: rtType,
+    depthBuffer: false,
+    stencilBuffer: false,
+  });
+
+  revealRT = new THREE.WebGLRenderTarget(w, h, {
+    format: THREE.RGBAFormat,
+    type: rtType,
+    depthBuffer: false,
+    stencilBuffer: false,
+  });
+
+  // --- Accum pass material (additive) ---
+  accumMat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneFactor,
+    blendEquation: THREE.AddEquation,
+    uniforms: {
+      uColor: { value: new THREE.Color(1, 1, 1) },
+      uOpacity: { value: 1.0 },
+
+      // простое освещение чтобы было "объемно", без рефракции
+      uLightDirA: { value: new THREE.Vector3(0.7, 0.9, 0.4).normalize() },
+      uLightDirB: { value: new THREE.Vector3(-0.8, 0.4, 0.2).normalize() },
+      uAmbient: { value: 0.18 },
+      uWeight: { value: 8.0 }
+    },
+    vertexShader: `
+      varying vec3 vN;
+      void main() {
+        vN = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vN;
+      uniform vec3 uColor;
+      uniform float uOpacity;
+      uniform vec3 uLightDirA;
+      uniform vec3 uLightDirB;
+      uniform float uAmbient;
+      uniform float uWeight;
+
+      void main() {
+        float a = max(dot(vN, normalize(uLightDirA)), 0.0);
+        float b = max(dot(vN, normalize(uLightDirB)), 0.0);
+        float lit = uAmbient + a * 0.65 + b * 0.35;
+
+        float alpha = clamp(uOpacity, 0.0, 1.0);
+
+        // Weighted OIT accumulation
+        float w = clamp(alpha * uWeight, 0.01, 50.0);
+        vec3 col = uColor * lit;
+
+        gl_FragColor = vec4(col * alpha * w, alpha * w);
+      }
+    `
+  });
+
+  // --- Reveal pass material (multiplicative via blending) ---
+  revealMat = new THREE.ShaderMaterial({
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.ZeroFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendEquation: THREE.AddEquation,
+    uniforms: {
+      uOpacity: { value: 1.0 }
+    },
+    vertexShader: `
+      void main() {
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uOpacity;
+      void main() {
+        float alpha = clamp(uOpacity, 0.0, 1.0);
+        gl_FragColor = vec4(0.0, 0.0, 0.0, alpha);
+      }
+    `
+  });
+
+  // --- Composite full-screen quad ---
+  quadScene = new THREE.Scene();
+  quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+  compositeMat = new THREE.ShaderMaterial({
+    depthTest: false,
+    depthWrite: false,
+    transparent: false,
+    uniforms: {
+      tOpaque: { value: opaqueRT.texture },
+      tAccum: { value: accumRT.texture },
+      tReveal: { value: revealRT.texture },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = vec4(position.xy, 0.0, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 vUv;
+      uniform sampler2D tOpaque;
+      uniform sampler2D tAccum;
+      uniform sampler2D tReveal;
+
+      void main() {
+        vec4 bg = texture2D(tOpaque, vUv);
+        vec4 acc = texture2D(tAccum, vUv);
+        vec4 rev = texture2D(tReveal, vUv);
+
+        float reveal = clamp(rev.r, 0.0, 1.0);
+        float alpha = 1.0 - reveal;
+
+        vec3 col = acc.rgb / max(acc.a, 1e-5);
+        vec3 outCol = mix(bg.rgb, col, alpha);
+
+        gl_FragColor = vec4(outCol, 1.0);
+      }
+    `
+  });
+
+  const quadGeo = new THREE.PlaneGeometry(2, 2);
+  quadMesh = new THREE.Mesh(quadGeo, compositeMat);
+  quadScene.add(quadMesh);
+}
+
+function disposeOit() {
+  opaqueRT?.dispose(); opaqueRT = null;
+  accumRT?.dispose(); accumRT = null;
+  revealRT?.dispose(); revealRT = null;
+
+  accumMat?.dispose(); accumMat = null;
+  revealMat?.dispose(); revealMat = null;
+  compositeMat?.dispose(); compositeMat = null;
+
+  quadScene = null;
+  quadCamera = null;
+  quadMesh = null;
 }
 
 export function setModel(root) {
@@ -101,6 +385,7 @@ export function resize() {
   camera.updateProjectionMatrix();
 
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if (oitEnabled) ensureOit();
 }
 
 function setupLights() {
