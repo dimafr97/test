@@ -11,6 +11,10 @@ let currentId = null;
 // ✅ Материалы, которыми управляет ползунок прозрачности
 let controlledMaterials = [];
 let currentOpacity = 1; // 0..1
+// ✅ Клоны мешей для второго прохода (BackSide), чтобы прозрачность выглядела объемно
+let backfaceClones = [];
+// ✅ Запомним имя материала, которым управляем (например "1"), чтобы не гадать в applyOpacity
+let controlledMaterialName = null;
 
 
 export function initInsetsViewer(refs) {
@@ -59,26 +63,125 @@ function collectMaterialsByName(root, name) {
   return Array.from(new Set(out));
 }
 
+function clearBackfaceClones() {
+  for (const c of backfaceClones) {
+    if (c?.parent) c.parent.remove(c);
+
+    // освобождаем клон-материалы
+    const mats = Array.isArray(c?.material) ? c.material : [c.material];
+    for (const m of mats) {
+      if (!m) continue;
+      m.dispose?.();
+    }
+  }
+  backfaceClones = [];
+}
+
+function buildBackfaceClones(root, materialName) {
+  clearBackfaceClones();
+  if (!root || !materialName) return;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+
+    // найдём индекс целевого материала (например "1") в массиве саб-материалов
+    const targetIdx = mats.findIndex((m) => m && String(m.name) === String(materialName));
+    if (targetIdx === -1) return;
+
+    // --- A) основной меш: целевой материал рисуем ТОЛЬКО фронт
+    const targetMat = mats[targetIdx];
+    targetMat.side = THREE.FrontSide;
+    targetMat.transparent = true;
+    targetMat.depthTest = true;
+    targetMat.depthWrite = false;
+    targetMat.needsUpdate = true;
+
+    // --- B) клон меша: копируем материалы, но:
+    // - целевой материал -> BackSide
+    // - остальные (сечения 3/4) отключаем, чтобы они не дублировались
+    const clonedMats = mats.map((m, i) => {
+      if (!m) return m;
+
+      // целевой материал
+      if (i === targetIdx) {
+        const backMat = m.clone();
+        backMat.side = THREE.BackSide;
+        backMat.transparent = true;
+        backMat.depthTest = true;
+        backMat.depthWrite = false;
+        backMat.needsUpdate = true;
+        return backMat;
+      }
+
+      // прочие материалы в клоне выключаем полностью
+      const off = m.clone();
+      off.transparent = true;
+      off.opacity = 0.0;
+      off.depthWrite = false;
+      off.depthTest = false;   // чтобы не мешал и не создавал “шум”
+      off.colorWrite = false;  // вообще не рисовать цвет
+      off.needsUpdate = true;
+      return off;
+    });
+
+    const backMesh = new THREE.Mesh(obj.geometry, clonedMats);
+
+    // копируем локальные трансформы 1:1
+    backMesh.position.copy(obj.position);
+    backMesh.quaternion.copy(obj.quaternion);
+    backMesh.scale.copy(obj.scale);
+
+    backMesh.frustumCulled = obj.frustumCulled;
+
+    // backpass рисуем чуть раньше
+    backMesh.renderOrder = (obj.renderOrder || 0) - 1;
+
+    obj.parent?.add(backMesh);
+    backfaceClones.push(backMesh);
+  });
+}
+
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
+  // 1) основной проход (FrontSide) — реальные материалы из модели
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // Врезки: хотим видеть "внутри", поэтому обе стороны
-    m.side = THREE.DoubleSide;
+    m.side = THREE.FrontSide;
 
-    // Один режим на весь диапазон
     m.transparent = true;
     m.opacity = currentOpacity;
 
-    // Ключ: не пишем depth, иначе внутренности исчезают
     m.depthTest = true;
     m.depthWrite = false;
 
-    // Убираем возможные артефакты от старых настроек
-    m.forceSinglePass = false;
-
+    m.forceSinglePass = false; // на всякий, чтобы не наследовалось старое
     m.needsUpdate = true;
+  }
+
+  // 2) второй проход (BackSide) — материалы внутри backfaceClones
+  for (const mesh of backfaceClones) {
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+
+    for (const m of mats) {
+      if (!m) continue;
+
+      // обновляем только тот материал, которым управляем
+      if (String(m.name) !== String(controlledMaterialName)) continue;
+
+      m.side = THREE.BackSide;
+
+      m.transparent = true;
+      m.opacity = currentOpacity;
+
+      m.depthTest = true;
+      m.depthWrite = false;
+
+      m.forceSinglePass = false;
+      m.needsUpdate = true;
+    }
   }
 }
 
@@ -178,6 +281,8 @@ export function showGallery() {
   if (statusEl) statusEl.textContent = "";
   currentId = null;
   exitInsetMode();
+    clearBackfaceClones();
+  controlledMaterialName = null;
   controlledMaterials = [];
 currentOpacity = 1;
 }
@@ -201,36 +306,42 @@ export function openById(id) {
 
   // загрузка
   showLoading(`Загрузка: ${meta.name}`);
+  clearBackfaceClones();
+controlledMaterials = [];
+controlledMaterialName = meta.opacityMaterialName;
 
 loadModel(meta.sourceId || meta.id, {
   onProgress: (p) => setProgress(p),
   onStatus: (s) => setStatus(s)
 })
 
-  .then(({ root }) => {
-    // ✅ 1) сначала применяем цвета сечений (если они заданы в meta)
-    applyInsetColors(root, meta);
+.then(({ root }) => {
+  // 1) красим сечения (3/4)
+  applyInsetColors(root, meta);
 
-    // ✅ 2) показываем модель в threeViewer
-    threeSetModel(root);
+  // 2) имя целевого материала (например "1")
+  controlledMaterialName = meta.opacityMaterialName;
 
-    // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
-    controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+  // 3) материалы, которыми управляем (из ОРИГИНАЛЬНОЙ модели)
+  controlledMaterials = collectMaterialsByName(root, controlledMaterialName);
 
-    // ✅ 4) применяем текущую прозрачность
-    applyOpacityToControlled();
+  // 4) строим backface клоны (для объема при прозрачности)
+  buildBackfaceClones(root, controlledMaterialName);
 
-    // ✅ статус (можно оставить)
-    if (controlledMaterials.length === 0) {
-      setStatus(`Материал "${meta.opacityMaterialName}" не найден`);
-    } else {
-      setStatus("");
-    }
+  // 5) показываем модель
+  threeSetModel(root);
 
-    hideLoading();
+  // 6) применяем opacity
+  applyOpacityToControlled();
 
-  })
+  if (controlledMaterials.length === 0) {
+    setStatus(`Материал "${controlledMaterialName}" не найден`);
+  } else {
+    setStatus("");
+  }
 
+  hideLoading();
+})
     .catch((err) => {
       console.error(err);
       hideLoading();
