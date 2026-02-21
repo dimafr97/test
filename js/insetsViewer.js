@@ -163,24 +163,42 @@ function markOitTransparentMeshes(root, materialName) {
 
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
-  const op = Math.max(0, Math.min(1, currentOpacity));
+  const isOpaque = currentOpacity >= 0.9995;
 
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // две стороны, чтобы изнутри тоже было видно
+    // хотим видеть "изнутри"
     m.side = THREE.DoubleSide;
 
-    // ✅ просто храним opacity в материале
+    if (isOpaque) {
+      // ✅ 100% = реально непрозрачный материал
+      m.transparent = false;
+      m.opacity = 1;
+
+      // обычное поведение глубины
+      m.depthTest = true;
+      m.depthWrite = true;
+
+      // на всякий случай
+      m.forceSinglePass = false;
+
+      m.needsUpdate = true;
+      continue;
+    }
+
+    // ✅ прозрачный режим (OIT)
+    // В OIT лучше держать чуть меньше 1.0
+    const op = Math.max(0, Math.min(0.9999, currentOpacity));
+
+    m.transparent = true;
     m.opacity = op;
 
-    // ✅ НЕ включаем стандартную прозрачность three.js (OIT сделает прозрачность сам)
-    m.transparent = false;
-
-    // обычная глубина
+    // "видно внутри/сквозь"
     m.depthTest = true;
-    m.depthWrite = true;
+    m.depthWrite = false;
 
+    m.forceSinglePass = false;
     m.needsUpdate = true;
   }
 }
@@ -213,6 +231,10 @@ function applyInsetColors(root, meta) {
       // ✅ делаем “матовый пластик”, чтобы цвет выглядел чисто и стабильно
       if ("metalness" in m) m.metalness = 0;
       if ("roughness" in m) m.roughness = 1;
+      m.transparent = false;
+m.opacity = 1;
+m.depthWrite = true;
+m.depthTest = true;
 
       m.needsUpdate = true;
     }
