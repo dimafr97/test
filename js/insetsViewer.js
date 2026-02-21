@@ -11,8 +11,6 @@ let currentId = null;
 // ✅ Материалы, которыми управляет ползунок прозрачности
 let controlledMaterials = [];
 let currentOpacity = 1; // 0..1
-// ✅ Невидимые меши для depth-prepass (чтобы прозрачность не ломала глубину)
-let depthPrepassMeshes = [];
 
 
 export function initInsetsViewer(refs) {
@@ -66,78 +64,36 @@ function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // 1) Врезки: хотим видеть "внутри", поэтому рисуем обе стороны
+    // всегда рисуем обе стороны
     m.side = THREE.DoubleSide;
 
-    // 2) Всегда работаем в одном режиме (как ты хочешь: весь диапазон)
-    //    Без переключения на "opaque mode".
+    const needTransparent = currentOpacity < 0.999;
+
+    if (!needTransparent) {
+      // полностью непрозрачный режим
+      m.transparent = false;
+      m.opacity = 1;
+      m.depthWrite = true;
+      m.depthTest = true;
+      m.needsUpdate = true;
+      continue;
+    }
+
+    // прозрачный режим
     m.transparent = true;
     m.opacity = currentOpacity;
 
-    // 3) КЛЮЧ: не пишем глубину, иначе "внутри" пропадает
+    // ВАЖНО:
+    // глубину пишем, чтобы сохранялся объем
+    m.depthWrite = true;
     m.depthTest = true;
-    m.depthWrite = false;
 
-    // 4) Не включаем forceSinglePass (пусть three сам сделает два прохода для DoubleSide)
-    //    Если где-то раньше выставлял — принудительно вернём "норму"
-    m.forceSinglePass = false;
+    // отключаем сортировку по объекту
+    // Three будет сортировать по треугольникам внутри
+    m.forceSinglePass = true;
 
     m.needsUpdate = true;
   }
-}
-
-function clearDepthPrepass() {
-  for (const m of depthPrepassMeshes) {
-    if (m && m.parent) m.parent.remove(m);
-    if (m?.material) m.material.dispose?.();
-  }
-  depthPrepassMeshes = [];
-}
-
-// ✅ Создаём невидимые depth-only клоны для всех МЕШЕЙ,
-// которые используют материал materialName (например "1")
-function buildDepthPrepassForMaterial(root, materialName) {
-  clearDepthPrepass();
-  if (!root || !materialName) return;
-
-  root.traverse((obj) => {
-    if (!obj.isMesh) return;
-
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const usesTarget = mats.some((m) => m && String(m.name) === String(materialName));
-    if (!usesTarget) return;
-
-    // Клон с той же геометрией
-    const depthMat = new THREE.MeshDepthMaterial();
-    depthMat.depthWrite = true;
-    depthMat.depthTest = true;
-    depthMat.transparent = false;
-
-    // ВАЖНО: не рисуем цвет вообще
-    depthMat.colorWrite = false;
-
-    // Небольшой polygonOffset, чтобы не было "драки" по depth
-    depthMat.polygonOffset = true;
-    depthMat.polygonOffsetFactor = 1;
-    depthMat.polygonOffsetUnits = 1;
-
-    const depthMesh = new THREE.Mesh(obj.geometry, depthMat);
-
-    // Копируем локальные трансформы 1 в 1
-    depthMesh.position.copy(obj.position);
-    depthMesh.quaternion.copy(obj.quaternion);
-    depthMesh.scale.copy(obj.scale);
-
-    // Чтобы совпадало по видимости
-    depthMesh.frustumCulled = obj.frustumCulled;
-
-    // Рисуем ДО основного меша
-    depthMesh.renderOrder = (obj.renderOrder || 0) - 1;
-
-    // Вставляем рядом (в того же родителя)
-    obj.parent?.add(depthMesh);
-    depthPrepassMeshes.push(depthMesh);
-  });
 }
 
 
@@ -236,7 +192,6 @@ export function showGallery() {
   if (statusEl) statusEl.textContent = "";
   currentId = null;
   exitInsetMode();
-  clearDepthPrepass();
   controlledMaterials = [];
 currentOpacity = 1;
 }
@@ -266,31 +221,29 @@ loadModel(meta.sourceId || meta.id, {
   onStatus: (s) => setStatus(s)
 })
 
-.then(({ root }) => {
-  // ✅ 1) сначала применяем цвета сечений (если они заданы в meta)
-  applyInsetColors(root, meta);
+  .then(({ root }) => {
+    // ✅ 1) сначала применяем цвета сечений (если они заданы в meta)
+    applyInsetColors(root, meta);
 
-  // ✅ 2) находим материалы, которыми управляет ползунок (например "1")
-  controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+    // ✅ 2) показываем модель в threeViewer
+    threeSetModel(root);
 
-  // ✅ 3) строим depth-prepass клоны для этого материала ("1")
-  buildDepthPrepassForMaterial(root, meta.opacityMaterialName);
+    // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
+    controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
 
-  // ✅ 4) показываем модель в threeViewer
-  threeSetModel(root);
+    // ✅ 4) применяем текущую прозрачность
+    applyOpacityToControlled();
 
-  // ✅ 5) применяем текущую прозрачность
-  applyOpacityToControlled();
+    // ✅ статус (можно оставить)
+    if (controlledMaterials.length === 0) {
+      setStatus(`Материал "${meta.opacityMaterialName}" не найден`);
+    } else {
+      setStatus("");
+    }
 
-  // ✅ статус (можно оставить)
-  if (controlledMaterials.length === 0) {
-    setStatus(`Материал "${meta.opacityMaterialName}" не найден`);
-  } else {
-    setStatus("");
-  }
+    hideLoading();
 
-  hideLoading();
-})
+  })
 
     .catch((err) => {
       console.error(err);
