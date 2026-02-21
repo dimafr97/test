@@ -11,6 +11,7 @@ let currentId = null;
 // ✅ Материалы, которыми управляет ползунок прозрачности
 let controlledMaterials = [];
 let currentOpacity = 1; // 0..1
+let currentRoot = null;
 
 
 export function initInsetsViewer(refs) {
@@ -59,17 +60,105 @@ function collectMaterialsByName(root, name) {
   return Array.from(new Set(out));
 }
 
-function markOitTransparentMeshes(root, materialName) {
+function splitMultiMaterialMeshes(root, targetMaterialName) {
+  if (!root) return;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    if (!Array.isArray(obj.material)) return;
+    if (!obj.geometry || !obj.geometry.groups || obj.geometry.groups.length === 0) return;
+
+    // найдём индексы материалов, которые соответствуют targetMaterialName ("1")
+    const targetIdx = [];
+    for (let i = 0; i < obj.material.length; i++) {
+      const m = obj.material[i];
+      if (m && String(m.name) === String(targetMaterialName)) targetIdx.push(i);
+    }
+    if (targetIdx.length === 0) return;
+
+    // проверяем: есть ли кроме target ещё какие-то группы
+    const hasTargetGroups = obj.geometry.groups.some(g => targetIdx.includes(g.materialIndex));
+    const hasOtherGroups  = obj.geometry.groups.some(g => !targetIdx.includes(g.materialIndex));
+    if (!hasTargetGroups || !hasOtherGroups) return; // нечего делить
+
+    // делаем 2 геометрии: targetGroups и otherGroups
+    const geoTarget = obj.geometry.clone();
+    geoTarget.clearGroups();
+    const geoOther = obj.geometry.clone();
+    geoOther.clearGroups();
+
+    for (const g of obj.geometry.groups) {
+      if (targetIdx.includes(g.materialIndex)) {
+        geoTarget.addGroup(g.start, g.count, g.materialIndex);
+      } else {
+        geoOther.addGroup(g.start, g.count, g.materialIndex);
+      }
+    }
+
+    // создаём 2 меша с теми же материалами (индексы сохраняются!)
+    const meshTarget = new THREE.Mesh(geoTarget, obj.material);
+    const meshOther  = new THREE.Mesh(geoOther,  obj.material);
+
+    // копируем трансформы/настройки
+    meshTarget.position.copy(obj.position);
+    meshTarget.quaternion.copy(obj.quaternion);
+    meshTarget.scale.copy(obj.scale);
+
+    meshOther.position.copy(obj.position);
+    meshOther.quaternion.copy(obj.quaternion);
+    meshOther.scale.copy(obj.scale);
+
+    meshTarget.frustumCulled = obj.frustumCulled;
+    meshOther.frustumCulled  = obj.frustumCulled;
+
+    // чтобы OIT мог понимать "какой материал главный" у target-меша
+    meshTarget.userData._oitTargetMaterialName = String(targetMaterialName);
+
+    // заменяем исходный меш двумя новыми
+    const parent = obj.parent;
+    if (!parent) return;
+
+    parent.add(meshTarget);
+    parent.add(meshOther);
+
+    parent.remove(obj);
+  });
+}
+
+function markOitTransparentMeshes(root, materialName, opacity01) {
   if (!root) return;
 
   root.traverse((obj) => {
     if (!obj.isMesh) return;
 
     const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    const usesTarget = mats.some((m) => m && String(m.name) === String(materialName));
 
-    // ✅ эти меши пойдут в OIT-проход (прозрачные тела)
-    obj.userData.oitTransparent = usesTarget;
+    // найдём индексы материалов с именем materialName ("1")
+    const targetIdx = [];
+    for (let i = 0; i < mats.length; i++) {
+      const m = mats[i];
+      if (m && String(m.name) === String(materialName)) targetIdx.push(i);
+    }
+
+    if (targetIdx.length === 0) {
+      obj.userData.oitTransparent = false;
+      return;
+    }
+
+    // определим, есть ли в геометрии группы именно с target materialIndex
+    const groups = obj.geometry?.groups || [];
+    const usesTargetGroups =
+      groups.length > 0
+        ? groups.some(g => targetIdx.includes(g.materialIndex))
+        : true; // если групп нет — значит это single-material mesh
+
+    // ВАЖНО: когда opacity почти 1 — делаем opaque (иначе 100% никогда не станет реально opaque)
+    const isReallyTransparent = opacity01 < 0.9995;
+
+    obj.userData.oitTransparent = usesTargetGroups && isReallyTransparent;
+
+    // запомним, какой материал брать для uColor/uOpacity в OIT
+    obj.userData._oitMatIndex = targetIdx[0];
   });
 }
 
@@ -167,9 +256,16 @@ function setupUiHandlers() {
   dom.tabVideoBtn?.classList.remove("active");
     // ✅ Ползунок прозрачности (работает только для выбранного материала, например "3")
 dom.insetOpacitySlider?.addEventListener("input", () => {
-  const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
-currentOpacity = Math.max(0, Math.min(0.9999, v / 100));
-applyOpacityToControlled();
+  const v = Number(dom.insetOpacitySlider.value || 100);
+  currentOpacity = Math.max(0, Math.min(1, v / 100));
+
+  // обновляем OIT-флаги каждый раз
+  if (currentRoot) {
+    const meta = getInsetMeta(currentId);
+    if (meta) markOitTransparentMeshes(currentRoot, meta.opacityMaterialName, currentOpacity);
+  }
+
+  applyOpacityToControlled();
 });
 // ✅ Важно: на телефоне не отдаём тач/drag дальше (в canvas), иначе первый drag не цепляется
 if (dom.insetOpacitySlider) {
@@ -225,27 +321,27 @@ loadModel(meta.sourceId || meta.id, {
 })
 
 .then(({ root }) => {
+  currentRoot = root;
+
   applyInsetColors(root, meta);
 
-  // ✅ помечаем меши материала 1 как "OIT прозрачные"
-  markOitTransparentMeshes(root, meta.opacityMaterialName);
+  // 1) разрезаем multi-material меши (иначе сечения могут исчезнуть)
+  splitMultiMaterialMeshes(root, meta.opacityMaterialName);
 
+  // 2) сначала собираем материалы под слайдер
+  controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+
+  // 3) включаем/обновляем OIT-флаги с учётом текущей прозрачности
+  markOitTransparentMeshes(root, meta.opacityMaterialName, currentOpacity);
+
+  // 4) ставим модель в сцену
   threeSetModel(root);
 
-  controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+  // 5) применяем opacity на материал
   applyOpacityToControlled();
 
-    // ✅ статус (можно оставить)
-    if (controlledMaterials.length === 0) {
-      setStatus(`Материал "${meta.opacityMaterialName}" не найден`);
-    } else {
-      setStatus("");
-    }
-
-    hideLoading();
-
-  })
-
+  hideLoading();
+})
     .catch((err) => {
       console.error(err);
       hideLoading();
