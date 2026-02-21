@@ -2,7 +2,7 @@
 // Viewer для "Врезок": только 3D, без схем и видео.
 // UI: Prev / Галерея / Next остаётся тем же.
 import * as THREE from "three";
-import { setModel as threeSetModel } from "./threeViewer.js";
+import { setModel as threeSetModel, setOitEnabled } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
 
@@ -31,15 +31,15 @@ export function initInsetsViewer(refs) {
 
 function enterInsetMode() {
   document.body.classList.add("inset-mode");
+  setOitEnabled(true);   // ✅ OIT включаем только во врезках
 
-  // ✅ Сбрасываем прозрачность на 100% при входе во Врезки
   currentOpacity = 1;
   if (dom?.insetOpacitySlider) dom.insetOpacitySlider.value = "100";
 }
 
-
 function exitInsetMode() {
   document.body.classList.remove("inset-mode");
+  setOitEnabled(false);  // ✅ на выходе выключаем
 }
 // ✅ Собрать все материалы с нужным именем (например "3") внутри загруженной модели
 function collectMaterialsByName(root, name) {
@@ -57,6 +57,20 @@ function collectMaterialsByName(root, name) {
 
   // ✅ Убираем дубликаты (часто один material шарится несколькими mesh)
   return Array.from(new Set(out));
+}
+
+function markOitTransparentMeshes(root, materialName) {
+  if (!root) return;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    const usesTarget = mats.some((m) => m && String(m.name) === String(materialName));
+
+    // ✅ эти меши пойдут в OIT-проход (прозрачные тела)
+    obj.userData.oitTransparent = usesTarget;
+  });
 }
 
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
@@ -205,18 +219,16 @@ loadModel(meta.sourceId || meta.id, {
   onStatus: (s) => setStatus(s)
 })
 
-  .then(({ root }) => {
-    // ✅ 1) сначала применяем цвета сечений (если они заданы в meta)
-    applyInsetColors(root, meta);
+.then(({ root }) => {
+  applyInsetColors(root, meta);
 
-    // ✅ 2) показываем модель в threeViewer
-    threeSetModel(root);
+  // ✅ помечаем меши материала 1 как "OIT прозрачные"
+  markOitTransparentMeshes(root, meta.opacityMaterialName);
 
-    // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
-    controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+  threeSetModel(root);
 
-    // ✅ 4) применяем текущую прозрачность
-    applyOpacityToControlled();
+  controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+  applyOpacityToControlled();
 
     // ✅ статус (можно оставить)
     if (controlledMaterials.length === 0) {
