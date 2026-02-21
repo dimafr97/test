@@ -75,20 +75,25 @@ function markOitTransparentMeshes(root, materialName) {
 
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
+  // В OIT лучше НЕ давать ровно 1.0, чтобы не было эффекта "как opaque"
+  const op = Math.max(0, Math.min(0.9999, currentOpacity));
+
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // ✅ рисуем обе стороны (чтобы изнутри тоже было видно)
+    // хотим видеть "внутри"
     m.side = THREE.DoubleSide;
 
-    const needTransparent = currentOpacity < 0.999;
+    // ✅ Один режим на весь диапазон
+    m.transparent = true;
+    m.opacity = op;
 
-    // Важно: opacity работает только если transparent=true
-    m.transparent = needTransparent;
-    m.opacity = currentOpacity;
+    // ✅ Ключ для "видно внутри/сквозь"
+    m.depthTest = true;
+    m.depthWrite = false;
 
-    // чтобы прозрачность работала адекватно (и видеть "внутри")
-    m.depthWrite = !needTransparent;
+    // на всякий случай сбрасываем, чтобы не было странностей
+    m.forceSinglePass = false;
 
     m.needsUpdate = true;
   }
@@ -163,8 +168,8 @@ function setupUiHandlers() {
     // ✅ Ползунок прозрачности (работает только для выбранного материала, например "3")
 dom.insetOpacitySlider?.addEventListener("input", () => {
   const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
-  currentOpacity = Math.max(0, Math.min(1, v / 100));    // 0..1
-  applyOpacityToControlled();
+currentOpacity = Math.max(0, Math.min(0.9999, v / 100));
+applyOpacityToControlled();
 });
 // ✅ Важно: на телефоне не отдаём тач/drag дальше (в canvas), иначе первый drag не цепляется
 if (dom.insetOpacitySlider) {
