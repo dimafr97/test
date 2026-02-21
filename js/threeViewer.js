@@ -1,5 +1,6 @@
 // js/threeViewer.js
-// Камера и управление — 100% поведение 8.html.
+// OIT (Weighted Blended) для "Врезок" + обычный рендер для остальных режимов.
+// three r153 compatible.
 
 import * as THREE from "three";
 
@@ -8,6 +9,8 @@ let camera = null;
 let renderer = null;
 
 let currentModel = null;
+
+// ===== OIT state =====
 let oitEnabled = false;
 
 let opaqueRT = null;
@@ -35,7 +38,7 @@ const state = {
 
 export function setOitEnabled(v) {
   oitEnabled = !!v;
-  if (oitEnabled) ensureOit();
+  if (oitEnabled) ensureOitTargets();
 }
 
 export function initThree(canvas) {
@@ -54,7 +57,7 @@ export function initThree(canvas) {
   renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
-    alpha: false
+    alpha: false,
   });
 
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -69,13 +72,29 @@ export function initThree(canvas) {
     state.rotY += (state.targetRotY - state.rotY) * 0.22;
 
     updateCameraPosition();
+
     if (!oitEnabled) {
-  renderer.render(scene, camera);
-} else {
-  renderOit();
-}
+      renderer.setRenderTarget(null);
+      renderer.render(scene, camera);
+    } else {
+      renderOit();
+    }
   });
 }
+
+export function setModel(root) {
+  if (currentModel) scene.remove(currentModel);
+
+  currentModel = root;
+  scene.add(currentModel);
+
+  state.targetRotX = 0.10;
+  state.targetRotY = 0.00;
+
+  fitCameraToModel(root);
+}
+
+// ===== OIT render =====
 
 function renderOit() {
   if (!currentModel) {
@@ -84,9 +103,9 @@ function renderOit() {
     return;
   }
 
-  ensureOit();
+  ensureOitTargets();
 
-  // --- 1) Opaque pass (сечения и всё НЕ oitTransparent) ---
+  // 1) Opaque pass: всё, что НЕ помечено как oitTransparent
   setVisibilityForOit(false);
 
   renderer.setRenderTarget(opaqueRT);
@@ -94,19 +113,21 @@ function renderOit() {
   renderer.clear(true, true, false);
   renderer.render(scene, camera);
 
-  // --- 2) Accum pass (только oitTransparent) ---
+  // 2) Accum pass: только oitTransparent
   setVisibilityForOit(true);
+  hookUniformsForTransparent(true);
 
   renderer.setRenderTarget(accumRT);
+  // важно: чистим в 0
   renderer.setClearColor(0x000000, 0);
   renderer.clear(true, false, false);
 
-  // подхватываем цвет/opacity из материала меша через onBeforeRender
   scene.overrideMaterial = accumMat;
   renderer.render(scene, camera);
 
-  // --- 3) Reveal pass (только oitTransparent) ---
+  // 3) Reveal pass: только oitTransparent
   renderer.setRenderTarget(revealRT);
+  // важно: чистим в 1 (white)
   renderer.setClearColor(0xffffff, 1);
   renderer.clear(true, false, false);
 
@@ -115,9 +136,14 @@ function renderOit() {
 
   // restore
   scene.overrideMaterial = null;
+  hookUniformsForTransparent(false);
   setVisibilityForOit(null);
 
-  // --- 4) Composite на экран ---
+  // 4) Composite на экран
+  compositeMat.uniforms.tOpaque.value = opaqueRT.texture;
+  compositeMat.uniforms.tAccum.value = accumRT.texture;
+  compositeMat.uniforms.tReveal.value = revealRT.texture;
+
   renderer.setRenderTarget(null);
   renderer.setClearColor(0x050506, 1);
   renderer.clear(true, true, false);
@@ -127,7 +153,7 @@ function renderOit() {
 // mode:
 // true  -> показываем только oitTransparent
 // false -> показываем только НЕ oitTransparent
-// null  -> показываем всё и убираем onBeforeRender
+// null  -> показываем всё
 function setVisibilityForOit(mode) {
   currentModel.traverse((obj) => {
     if (!obj.isMesh) return;
@@ -138,220 +164,275 @@ function setVisibilityForOit(mode) {
     else if (mode === false) obj.visible = !isOit;
     else obj.visible = true;
   });
-
-  // Включаем/выключаем прокидывание uColor/uOpacity
-  if (mode === true) {
-    currentModel.traverse((obj) => {
-      if (!obj.isMesh || !obj.userData.oitTransparent) return;
-
-      obj.onBeforeRender = () => {
-        // Т.к. у тебя материал 1 общий на куб/конус — обычно obj.material один.
-        // Если вдруг массив — берём первый, но при желании можно сделать умнее.
-        const mat = Array.isArray(obj.material) ? obj.material[0] : obj.material;
-
-        if (mat?.color && accumMat) accumMat.uniforms.uColor.value.copy(mat.color);
-        if (accumMat) accumMat.uniforms.uOpacity.value = (mat?.opacity ?? 1);
-
-        if (revealMat) revealMat.uniforms.uOpacity.value = (mat?.opacity ?? 1);
-      };
-    });
-  } else if (mode === null) {
-    currentModel.traverse((obj) => {
-      if (!obj.isMesh) return;
-      obj.onBeforeRender = null;
-    });
-  }
 }
 
-function ensureOit() {
+// ВАЖНО: не ставим onBeforeRender = null.
+// Если хотим "снять" хук — делаем delete obj.onBeforeRender (чтобы вернуться к прототипу).
+function hookUniformsForTransparent(enable) {
+  if (!currentModel) return;
+
+  if (!enable) {
+    currentModel.traverse((obj) => {
+      if (!obj.isMesh) return;
+      if (obj.userData._oitHooked) {
+        delete obj.onBeforeRender;
+        obj.userData._oitHooked = false;
+      }
+    });
+    return;
+  }
+
+  currentModel.traverse((obj) => {
+    if (!obj.isMesh) return;
+    if (!obj.userData.oitTransparent) return;
+
+    // ставим один раз
+    if (obj.userData._oitHooked) return;
+    obj.userData._oitHooked = true;
+
+    obj.onBeforeRender = () => {
+      const mat = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+
+      // берём цвет материала (без текстур — как у тебя)
+      if (mat?.color) {
+        accumMat.uniforms.uColor.value.copy(mat.color);
+      } else {
+        accumMat.uniforms.uColor.value.set(1, 1, 1);
+      }
+
+      const op = (mat?.opacity ?? 1.0);
+      accumMat.uniforms.uOpacity.value = op;
+      revealMat.uniforms.uOpacity.value = op;
+    };
+  });
+}
+
+function ensureOitTargets() {
   if (!renderer) return;
 
   const w = Math.max(1, Math.floor(window.innerWidth));
   const h = Math.max(1, Math.floor(window.innerHeight));
 
-  // если уже нужный размер — ничего не делаем
   if (opaqueRT && opaqueRT.width === w && opaqueRT.height === h) return;
 
-  disposeOit();
+  disposeOitTargets();
 
-  // 1) Opaque RT (с depth)
+  // Opaque RT (с depth)
   opaqueRT = new THREE.WebGLRenderTarget(w, h, {
     format: THREE.RGBAFormat,
     type: THREE.UnsignedByteType,
     depthBuffer: true,
     stencilBuffer: false,
   });
+  opaqueRT.texture.name = "oit_opaque";
 
-  // 2) Accum/Reveal RT (без depth)
-  // В идеале HalfFloat, но на телеграм-webview иногда проще UnsignedByte.
-  // Начнем с UnsignedByte — уже даст правильную "глубину/пересечения".
-  const rtType = THREE.UnsignedByteType;
-
+  // Accum + Reveal RT (без depth)
+  // Для начала UnsignedByteType — максимально совместимо в WebView.
   accumRT = new THREE.WebGLRenderTarget(w, h, {
     format: THREE.RGBAFormat,
-    type: rtType,
+    type: THREE.UnsignedByteType,
     depthBuffer: false,
     stencilBuffer: false,
   });
+  accumRT.texture.name = "oit_accum";
 
   revealRT = new THREE.WebGLRenderTarget(w, h, {
     format: THREE.RGBAFormat,
-    type: rtType,
+    type: THREE.UnsignedByteType,
     depthBuffer: false,
     stencilBuffer: false,
   });
+  revealRT.texture.name = "oit_reveal";
 
-  // --- Accum pass material (additive) ---
+  buildOitMaterials();
+  buildQuad();
+}
+
+function disposeOitTargets() {
+  if (opaqueRT) opaqueRT.dispose();
+  if (accumRT) accumRT.dispose();
+  if (revealRT) revealRT.dispose();
+  opaqueRT = accumRT = revealRT = null;
+}
+
+function buildOitMaterials() {
+  // УПРОЩЁННЫЙ, но “объёмный” шейдинг (без “стекла”, без преломления):
+  // diffuse + небольшой ambient, под наши Directional lights.
+  // Это нужно, чтобы объём не пропадал на прозрачных.
+
+  const vs = /* glsl */ `
+    varying vec3 vNormalW;
+    varying vec3 vPosW;
+
+    void main() {
+      vec4 worldPos = modelMatrix * vec4(position, 1.0);
+      vPosW = worldPos.xyz;
+
+      // нормаль в мировых координатах
+      vNormalW = normalize(mat3(modelMatrix) * normal);
+
+      gl_Position = projectionMatrix * viewMatrix * worldPos;
+    }
+  `;
+
+  const fsLighting = /* glsl */ `
+    precision highp float;
+
+    varying vec3 vNormalW;
+    varying vec3 vPosW;
+
+    uniform vec3 uColor;
+    uniform float uOpacity;
+
+    // направления света (приблизительно как в setupLights)
+    // можно потом подстроить, если захочешь
+    vec3 lightDir(vec3 p, vec3 lp){
+      return normalize(lp - p);
+    }
+
+    void main() {
+      vec3 N = normalize(vNormalW);
+
+      // DoubleSide: если смотрим на обратную сторону — разворачиваем нормаль
+      // (иначе “задние грани” темнеют/исчезают)
+      if (!gl_FrontFacing) N = -N;
+
+      // Позиции источников (как у тебя)
+      vec3 keyPos = vec3(5.5, 6.0, 3.5);
+      vec3 fillPos = vec3(-7.0, 3.5, 2.0);
+      vec3 rimPos = vec3(-3.5, 5.0, -7.5);
+
+      vec3 Lk = lightDir(vPosW, keyPos);
+      vec3 Lf = lightDir(vPosW, fillPos);
+      vec3 Lr = lightDir(vPosW, rimPos);
+
+      float dk = max(dot(N, Lk), 0.0);
+      float df = max(dot(N, Lf), 0.0);
+      float dr = max(dot(N, Lr), 0.0);
+
+      // интенсивности близко к твоим
+      vec3 lit =
+        uColor * (0.10 + 1.85*dk + 0.35*df) +
+        uColor * (0.15*dr);
+
+      // clamp чтобы не “выбивало” в белое
+      lit = clamp(lit, 0.0, 1.0);
+
+      // ---- Weighted Blended OIT накопление ----
+      // Вес можно делать зависимым от alpha, чтобы слои выглядели приятнее
+      float a = clamp(uOpacity, 0.0, 0.9999);
+      float w = max(0.01, a); // простой вес
+
+      // Accum: rgb += lit * a * w, a += a*w
+      gl_FragColor = vec4(lit * a * w, a * w);
+    }
+  `;
+
   accumMat = new THREE.ShaderMaterial({
-    transparent: true,
-    depthTest: true,
-    depthWrite: false,
-    blending: THREE.CustomBlending,
-    blendSrc: THREE.OneFactor,
-    blendDst: THREE.OneFactor,
-    blendEquation: THREE.AddEquation,
     uniforms: {
       uColor: { value: new THREE.Color(1, 1, 1) },
       uOpacity: { value: 1.0 },
-
-      // простое освещение чтобы было "объемно", без рефракции
-      uLightDirA: { value: new THREE.Vector3(0.7, 0.9, 0.4).normalize() },
-      uLightDirB: { value: new THREE.Vector3(-0.8, 0.4, 0.2).normalize() },
-      uAmbient: { value: 0.18 },
-      uWeight: { value: 8.0 }
     },
-    vertexShader: `
-      varying vec3 vN;
-      void main() {
-        vN = normalize(normalMatrix * normal);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      varying vec3 vN;
-      uniform vec3 uColor;
-      uniform float uOpacity;
-      uniform vec3 uLightDirA;
-      uniform vec3 uLightDirB;
-      uniform float uAmbient;
-      uniform float uWeight;
-
-      void main() {
-        float a = max(dot(vN, normalize(uLightDirA)), 0.0);
-        float b = max(dot(vN, normalize(uLightDirB)), 0.0);
-        float lit = uAmbient + a * 0.65 + b * 0.35;
-
-        float alpha = clamp(uOpacity, 0.0, 1.0);
-
-        // Weighted OIT accumulation
-        float w = clamp(alpha * uWeight, 0.01, 50.0);
-        vec3 col = uColor * lit;
-
-        gl_FragColor = vec4(col * alpha * w, alpha * w);
-      }
-    `
-  });
-
-  // --- Reveal pass material (multiplicative via blending) ---
-  revealMat = new THREE.ShaderMaterial({
+    vertexShader: vs,
+    fragmentShader: fsLighting,
     transparent: true,
     depthTest: true,
     depthWrite: false,
-    blending: THREE.CustomBlending,
-    blendSrc: THREE.ZeroFactor,
-    blendDst: THREE.OneMinusSrcAlphaFactor,
-    blendEquation: THREE.AddEquation,
+    side: THREE.DoubleSide,
+  });
+
+  // additive blending
+  accumMat.blending = THREE.CustomBlending;
+  accumMat.blendEquation = THREE.AddEquation;
+  accumMat.blendSrc = THREE.OneFactor;
+  accumMat.blendDst = THREE.OneFactor;
+
+  // Reveal: dst *= (1 - alpha)
+  const fsReveal = /* glsl */ `
+    precision highp float;
+    uniform float uOpacity;
+    void main() {
+      float a = clamp(uOpacity, 0.0, 0.9999);
+      // кладём alpha в rgb, blending сделает dst *= (1 - a)
+      gl_FragColor = vec4(a, a, a, 1.0);
+    }
+  `;
+
+  revealMat = new THREE.ShaderMaterial({
     uniforms: {
-      uOpacity: { value: 1.0 }
+      uOpacity: { value: 1.0 },
     },
-    vertexShader: `
+    vertexShader: /* glsl */ `
       void main() {
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
-    fragmentShader: `
-      uniform float uOpacity;
-      void main() {
-        float alpha = clamp(uOpacity, 0.0, 1.0);
-        gl_FragColor = vec4(0.0, 0.0, 0.0, alpha);
-      }
-    `
+    fragmentShader: fsReveal,
+    transparent: true,
+    depthTest: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
   });
 
-  // --- Composite full-screen quad ---
-  quadScene = new THREE.Scene();
-  quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  revealMat.blending = THREE.CustomBlending;
+  revealMat.blendEquation = THREE.AddEquation;
+  revealMat.blendSrc = THREE.ZeroFactor;
+  revealMat.blendDst = THREE.OneMinusSrcAlphaFactor;
 
+  // Composite (fullscreen)
   compositeMat = new THREE.ShaderMaterial({
-    depthTest: false,
-    depthWrite: false,
-    transparent: false,
     uniforms: {
-      tOpaque: { value: opaqueRT.texture },
-      tAccum: { value: accumRT.texture },
-      tReveal: { value: revealRT.texture },
+      tOpaque: { value: null },
+      tAccum: { value: null },
+      tReveal: { value: null },
     },
-    vertexShader: `
+    vertexShader: /* glsl */ `
       varying vec2 vUv;
       void main() {
         vUv = uv;
         gl_Position = vec4(position.xy, 0.0, 1.0);
       }
     `,
-    fragmentShader: `
+    fragmentShader: /* glsl */ `
+      precision highp float;
       varying vec2 vUv;
+
       uniform sampler2D tOpaque;
       uniform sampler2D tAccum;
       uniform sampler2D tReveal;
 
       void main() {
-        vec4 bg = texture2D(tOpaque, vUv);
-        vec4 acc = texture2D(tAccum, vUv);
-        vec4 rev = texture2D(tReveal, vUv);
+        vec4 opaque = texture2D(tOpaque, vUv);
+        vec4 accum = texture2D(tAccum, vUv);
+        vec4 reveal = texture2D(tReveal, vUv);
 
-        float reveal = clamp(rev.r, 0.0, 1.0);
-        float alpha = 1.0 - reveal;
+        float oneMinusReveal = 1.0 - reveal.r;
+        float a = clamp(oneMinusReveal, 0.0, 1.0);
 
-        vec3 col = acc.rgb / max(acc.a, 1e-5);
-        vec3 outCol = mix(bg.rgb, col, alpha);
+        vec3 trans = accum.rgb / max(accum.a, 1e-5);
 
-        gl_FragColor = vec4(outCol, 1.0);
+        // финальное смешивание
+        vec3 outRgb = opaque.rgb * (1.0 - a) + trans * a;
+
+        gl_FragColor = vec4(outRgb, 1.0);
       }
-    `
+    `,
+    depthTest: false,
+    depthWrite: false,
+    transparent: false,
   });
+}
 
-  const quadGeo = new THREE.PlaneGeometry(2, 2);
-  quadMesh = new THREE.Mesh(quadGeo, compositeMat);
+function buildQuad() {
+  quadScene = new THREE.Scene();
+  quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+  const geom = new THREE.PlaneGeometry(2, 2);
+  quadMesh = new THREE.Mesh(geom, compositeMat);
   quadScene.add(quadMesh);
 }
 
-function disposeOit() {
-  opaqueRT?.dispose(); opaqueRT = null;
-  accumRT?.dispose(); accumRT = null;
-  revealRT?.dispose(); revealRT = null;
-
-  accumMat?.dispose(); accumMat = null;
-  revealMat?.dispose(); revealMat = null;
-  compositeMat?.dispose(); compositeMat = null;
-
-  quadScene = null;
-  quadCamera = null;
-  quadMesh = null;
-}
-
-export function setModel(root) {
-  if (currentModel) {
-    scene.remove(currentModel);
-  }
-
-  currentModel = root;
-  scene.add(currentModel);
-
-  state.targetRotX = 0.10;
-  state.targetRotY = 0.00;
-
-  fitCameraToModel(root);
-}
+// ===== camera / resize =====
 
 function fitCameraToModel(root) {
   const box = new THREE.Box3().setFromObject(root);
@@ -385,8 +466,12 @@ export function resize() {
   camera.updateProjectionMatrix();
 
   renderer.setSize(window.innerWidth, window.innerHeight);
-  if (oitEnabled) ensureOit();
+
+  // OIT targets тоже ресайзим
+  if (oitEnabled) ensureOitTargets();
 }
+
+// ===== lights / controls =====
 
 function setupLights() {
   const zenith = new THREE.DirectionalLight(0xf5f8ff, 0.0);
@@ -426,7 +511,7 @@ function initControls(canvas) {
     lastY = e.clientY;
   });
 
-  window.addEventListener("mouseup", () => dragging = false);
+  window.addEventListener("mouseup", () => (dragging = false));
 
   window.addEventListener("mousemove", (e) => {
     if (!dragging) return;
@@ -446,65 +531,77 @@ function initControls(canvas) {
     );
   });
 
-  canvas.addEventListener("wheel", (e) => {
-    e.preventDefault();
+  canvas.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
 
-    const delta = e.deltaY * 0.002;
-
-    state.radius = THREE.MathUtils.clamp(
-      state.radius + delta,
-      state.minRadius,
-      state.maxRadius
-    );
-  }, { passive: false });
-
-  canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-
-    if (e.touches.length === 1) {
-      touchMode = "rotate";
-      lastX = e.touches[0].clientX;
-      lastY = e.touches[0].clientY;
-    } else if (e.touches.length === 2) {
-      touchMode = "zoom";
-      lastPinch = pinch(e.touches[0], e.touches[1]);
-    }
-  }, { passive: false });
-
-  canvas.addEventListener("touchmove", (e) => {
-    if (!touchMode) return;
-    e.preventDefault();
-
-    if (touchMode === "rotate" && e.touches.length === 1) {
-      const t = e.touches[0];
-      const dx = t.clientX - lastX;
-      const dy = t.clientY - lastY;
-
-      lastX = t.clientX;
-      lastY = t.clientY;
-
-      state.targetRotY += dx * -0.008;
-      state.targetRotX += dy * 0.008;
-
-      state.targetRotX = Math.max(
-        -Math.PI / 2 + 0.2,
-        Math.min(Math.PI / 2 - 0.2, state.targetRotX)
-      );
-    }
-
-    if (touchMode === "zoom" && e.touches.length === 2) {
-      const dist = pinch(e.touches[0], e.touches[1]);
-      const delta = (lastPinch - dist) * 0.01;
-
-      lastPinch = dist;
+      const delta = e.deltaY * 0.002;
 
       state.radius = THREE.MathUtils.clamp(
         state.radius + delta,
         state.minRadius,
-               state.maxRadius
+        state.maxRadius
       );
-    }
-  }, { passive: false });
+    },
+    { passive: false }
+  );
+
+  canvas.addEventListener(
+    "touchstart",
+    (e) => {
+      e.preventDefault();
+
+      if (e.touches.length === 1) {
+        touchMode = "rotate";
+        lastX = e.touches[0].clientX;
+        lastY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        touchMode = "zoom";
+        lastPinch = pinch(e.touches[0], e.touches[1]);
+      }
+    },
+    { passive: false }
+  );
+
+  canvas.addEventListener(
+    "touchmove",
+    (e) => {
+      if (!touchMode) return;
+      e.preventDefault();
+
+      if (touchMode === "rotate" && e.touches.length === 1) {
+        const t = e.touches[0];
+        const dx = t.clientX - lastX;
+        const dy = t.clientY - lastY;
+
+        lastX = t.clientX;
+        lastY = t.clientY;
+
+        state.targetRotY += dx * -0.008;
+        state.targetRotX += dy * 0.008;
+
+        state.targetRotX = Math.max(
+          -Math.PI / 2 + 0.2,
+          Math.min(Math.PI / 2 - 0.2, state.targetRotX)
+        );
+      }
+
+      if (touchMode === "zoom" && e.touches.length === 2) {
+        const dist = pinch(e.touches[0], e.touches[1]);
+        const delta = (lastPinch - dist) * 0.01;
+
+        lastPinch = dist;
+
+        state.radius = THREE.MathUtils.clamp(
+          state.radius + delta,
+          state.minRadius,
+          state.maxRadius
+        );
+      }
+    },
+    { passive: false }
+  );
 
   window.addEventListener("touchend", () => {
     touchMode = null;
