@@ -14,6 +14,7 @@ let currentOpacity = 1; // 0..1
 let currentRoot = null;
 
 
+
 export function initInsetsViewer(refs) {
   dom = { ...refs };
   if (!dom.canvasEl) throw new Error("initInsetsViewer: canvasEl missing");
@@ -167,37 +168,54 @@ if (obj.userData.oitTransparent) {
 
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
+  // 1) одно вычисление флага (и НЕ объявлять второй раз ниже!)
   const needTransparent = currentOpacity < 0.9995;
 
+  // 2) применяем параметры к материалам, которыми управляет ползунок
   for (const m of controlledMaterials) {
     if (!m) continue;
 
+    // чтобы были видны внутренности
     m.side = THREE.DoubleSide;
+
+    // глубину тестируем всегда
     m.depthTest = true;
 
     if (!needTransparent) {
-      // 100% = реально opaque
+      // ✅ 100% = РЕАЛЬНО непрозрачно
       m.transparent = false;
       m.opacity = 1.0;
+
+      // ✅ непрозрачное должно писать глубину
       m.depthWrite = true;
     } else {
-      // прозрачный режим (для OIT)
+      // ✅ прозрачный режим (для OIT)
       m.transparent = true;
-      m.opacity = currentOpacity; // ВАЖНО: НЕ зажимать до 0.9999
+      m.opacity = currentOpacity;
+
+      // ✅ чтобы видеть пересечения/внутренности — не пишем depth
       m.depthWrite = false;
     }
 
+    // на всякий случай (чтобы не ломало double-side)
     m.forceSinglePass = false;
+
     m.needsUpdate = true;
   }
 
-  // после изменения opacity обязательно обновляем флаги OIT
-  if (currentRoot) {
+  // 3) обновляем флаги OIT на мешах (чтобы OIT знал, что считать прозрачным)
+  // важно: это делаем после выставления currentOpacity
+  if (currentRoot && currentId) {
     const meta = getInsetMeta(currentId);
-    if (meta) markOitTransparentMeshes(currentRoot, meta.opacityMaterialName, currentOpacity);
+    if (meta) {
+      // если 100% — можно вообще не считать OIT (ускорение + меньше багов)
+      markOitTransparentMeshes(currentRoot, meta.opacityMaterialName);
+    }
   }
-  const needTransparent = currentOpacity < 0.9995;
-setOitEnabled(needTransparent);
+
+  // 4) включаем/выключаем OIT в зависимости от прозрачности
+  // (если 100% — OIT выключаем, иначе включаем)
+  setOitEnabled(needTransparent);
 }
 
 // ✅ Применить “плоские” цвета материалам сечений (например "2" и "3")
@@ -307,6 +325,7 @@ export function showGallery() {
   currentId = null;
   exitInsetMode();
   controlledMaterials = [];
+  currentRoot = null;
 currentOpacity = 1;
 }
 
