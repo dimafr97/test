@@ -289,14 +289,14 @@ const fsLighting = /* glsl */ `
   uniform vec3 uColor;
   uniform float uOpacity;
 
-  varying vec3 vN;
+  varying vec3 vNormalW;
   varying vec3 vPosW;
 
   // нормализованный "ближний" clamp, без искусственного 0.9999
   float saturate(float x) { return clamp(x, 0.0, 1.0); }
 
   void main() {
-    vec3 N = normalize(vN);
+  vec3 N = normalize(vNormalW);
 
     // --- как в threeViewer.js (setupLights):
     // key:  color 0xffc4a0, intensity 1.85, position (5.5, 6.0, 3.5)
