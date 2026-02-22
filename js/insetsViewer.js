@@ -2,7 +2,7 @@
 // Viewer для "Врезок": только 3D, без схем и видео.
 // UI: Prev / Галерея / Next остаётся тем же.
 import * as THREE from "three";
-import { setModel as threeSetModel } from "./threeViewer.js";
+import { setModel as threeSetModel, setInsetBlendEnabled, setInsetBlendState } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
 
@@ -31,6 +31,8 @@ export function initInsetsViewer(refs) {
 
 function enterInsetMode() {
   document.body.classList.add("inset-mode");
+    setInsetBlendEnabled(true);
+  setInsetBlendState(0, controlledMaterials); // на старте смешивания нет
 
   // ✅ Сбрасываем прозрачность на 100% при входе во Врезки
   currentOpacity = 1;
@@ -40,6 +42,8 @@ function enterInsetMode() {
 
 function exitInsetMode() {
   document.body.classList.remove("inset-mode");
+    setInsetBlendState(0, []);
+  setInsetBlendEnabled(false);
 }
 // ✅ Собрать все материалы с нужным именем (например "3") внутри загруженной модели
 function collectMaterialsByName(root, name) {
@@ -149,8 +153,25 @@ function setupUiHandlers() {
     // ✅ Ползунок прозрачности (работает только для выбранного материала, например "3")
 dom.insetOpacitySlider?.addEventListener("input", () => {
   const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
-  currentOpacity = Math.max(0, Math.min(1, v / 100));    // 0..1
+  const uiOpacity = Math.max(0, Math.min(1, v / 100));   // 0..1
+
+  // 0..0.7 — реальная прозрачность как раньше
+  if (uiOpacity <= 0.7) {
+    currentOpacity = uiOpacity;
+    applyOpacityToControlled();
+
+    // смешивание выключаем
+    setInsetBlendState(0, controlledMaterials);
+    return;
+  }
+
+  // 0.7..1.0 — фиксируем "реальную" прозрачность на 0.7
+  // и плавно смешиваем картинку 70% -> 100% opaque
+  const t = (uiOpacity - 0.7) / 0.3; // 0..1
+  currentOpacity = 0.7;
   applyOpacityToControlled();
+
+  setInsetBlendState(t, controlledMaterials);
 });
 // ✅ Важно: на телефоне не отдаём тач/drag дальше (в canvas), иначе первый drag не цепляется
 if (dom.insetOpacitySlider) {
@@ -214,6 +235,7 @@ loadModel(meta.sourceId || meta.id, {
 
     // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
     controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+    setInsetBlendState(0, controlledMaterials);
 
     // ✅ 4) применяем текущую прозрачность
     applyOpacityToControlled();
