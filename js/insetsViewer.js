@@ -125,13 +125,15 @@ function applyInsetColors(root, meta) {
 
       // 2) отодвигаем сечение по depth (убираем z-fighting с конусом/кубом)
       m.polygonOffset = true;
-      m.polygonOffsetFactor = -2;
-      m.polygonOffsetUnits = -2;
+      m.polygonOffsetFactor = 1;
+      m.polygonOffsetUnits = 1;
 
       // 3) нормальный блендинг (на всякий случай)
       m.blending = THREE.NormalBlending;
-            // ✅ сечения рисуем поверх тел
-      obj.renderOrder = 10;
+           // Стабильный порядок: материал "3" всегда ниже, материал "4" всегда выше
+if (key === "3") obj.renderOrder = 20;
+else if (key === "4") obj.renderOrder = 21;
+else obj.renderOrder = 20;
     
       m.needsUpdate = true;
     }
