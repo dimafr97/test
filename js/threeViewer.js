@@ -195,7 +195,11 @@ function hookUniformsForTransparent(enable) {
     obj.userData._oitHooked = true;
 
     obj.onBeforeRender = () => {
-      const mat = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+      const idx = (obj.userData && Number.isInteger(obj.userData._oitMatIndex))
+  ? obj.userData._oitMatIndex
+  : 0;
+
+const mat = Array.isArray(obj.material) ? obj.material[idx] : obj.material;
 
       // берём цвет материала (без текстур — как у тебя)
       if (mat?.color) {
@@ -352,15 +356,18 @@ function buildOitMaterials() {
   accumMat.blendDst = THREE.OneFactor;
 
   // Reveal: dst *= (1 - alpha)
-  const fsReveal = /* glsl */ `
-    precision highp float;
-    uniform float uOpacity;
-    void main() {
-      float a = clamp(uOpacity, 0.0, 0.9999);
-      // кладём alpha в rgb, blending сделает dst *= (1 - a)
-      gl_FragColor = vec4(a, a, a, 1.0);
-    }
-  `;
+const fsReveal = /* glsl */ `
+  precision highp float;
+  uniform float uOpacity;
+  void main() {
+    float a = clamp(uOpacity, 0.0, 1.0);
+    // ВАЖНО:
+    // Мы используем blendDst = OneMinusSrcAlphaFactor,
+    // значит "SrcAlpha" должен быть РАВЕН a.
+    // Тогда dst = dst * (1 - a) — то, что нужно.
+    gl_FragColor = vec4(0.0, 0.0, 0.0, a);
+  }
+`;
 
   revealMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -410,8 +417,8 @@ function buildOitMaterials() {
         vec4 accum = texture2D(tAccum, vUv);
         vec4 reveal = texture2D(tReveal, vUv);
 
-        float oneMinusReveal = 1.0 - reveal.r;
-        float a = clamp(oneMinusReveal, 0.0, 1.0);
+float oneMinusReveal = 1.0 - reveal.a;
+float a = clamp(oneMinusReveal, 0.0, 1.0);
 
         vec3 trans = accum.rgb / max(accum.a, 1e-5);
 
