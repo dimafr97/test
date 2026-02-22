@@ -32,7 +32,7 @@ export function initInsetsViewer(refs) {
 
 function enterInsetMode() {
   document.body.classList.add("inset-mode");
-  setOitEnabled(true);   // ✅ OIT включаем только во врезках
+  setOitEnabled(false);   // ✅ OIT включаем только во врезках
 
   currentOpacity = 1;
   if (dom?.insetOpacitySlider) dom.insetOpacitySlider.value = "100";
@@ -125,7 +125,7 @@ function splitMultiMaterialMeshes(root, targetMaterialName) {
   });
 }
 
-function markOitTransparentMeshes(root, materialName) {
+function markOitTransparentMeshes(root, materialName, opacity01 = 1) {
   if (!root) return;
 
   root.traverse((obj) => {
@@ -153,11 +153,15 @@ function markOitTransparentMeshes(root, materialName) {
         ? groups.some((g) => targetIdx.includes(g.materialIndex))
         : true; // single-material mesh
 
-    // ✅ ВАЖНО: без зависимости от opacity — "тела" всегда идут в OIT
-    obj.userData.oitTransparent = usesTargetGroups;
+const needTransparent = opacity01 < 0.9995;
 
-    // запомним индекс материала, чтобы threeViewer мог взять цвет/opacity
-    obj.userData._oitMatIndex = targetIdx[0];
+obj.userData.oitTransparent = usesTargetGroups && needTransparent;
+
+if (obj.userData.oitTransparent) {
+  obj.userData._oitMatIndex = targetIdx[0];
+} else {
+  delete obj.userData._oitMatIndex;
+}
   });
 }
 
@@ -192,6 +196,8 @@ function applyOpacityToControlled() {
     const meta = getInsetMeta(currentId);
     if (meta) markOitTransparentMeshes(currentRoot, meta.opacityMaterialName, currentOpacity);
   }
+  const needTransparent = currentOpacity < 0.9995;
+setOitEnabled(needTransparent);
 }
 
 // ✅ Применить “плоские” цвета материалам сечений (например "2" и "3")
@@ -271,7 +277,7 @@ dom.insetOpacitySlider?.addEventListener("input", () => {
   // обновляем OIT-флаги каждый раз
   if (currentRoot) {
     const meta = getInsetMeta(currentId);
-    if (meta) markOitTransparentMeshes(currentRoot, meta.opacityMaterialName);
+    if (meta) markOitTransparentMeshes(currentRoot, meta.opacityMaterialName, currentOpacity);
   }
 
   applyOpacityToControlled();
@@ -341,7 +347,7 @@ loadModel(meta.sourceId || meta.id, {
   controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
 
   // 3) включаем/обновляем OIT-флаги с учётом текущей прозрачности
-  markOitTransparentMeshes(root, meta.opacityMaterialName);
+  markOitTransparentMeshes(root, meta.opacityMaterialName, currentOpacity);
 
   // 4) ставим модель в сцену
   threeSetModel(root);
