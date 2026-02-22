@@ -185,18 +185,19 @@ fragmentShader: `
   uniform float uMix;
   varying vec2 vUv;
 
-  #include <colorspace_pars_fragment>
+#include <common>
+#include <encodings_pars_fragment>
 
-  void main() {
-    vec4 a = texture2D(tA, vUv);
-    vec4 b = texture2D(tB, vUv);
+void main() {
+  vec4 a = texture2D(tA, vUv);
+  vec4 b = texture2D(tB, vUv);
 
-    // ✅ Смешиваем в LINEAR
-    vec4 c = mix(a, b, clamp(uMix, 0.0, 1.0));
+  // смешиваем в линейном пространстве
+  vec4 c = mix(a, b, clamp(uMix, 0.0, 1.0));
 
-    // ✅ Превращаем в правильный output (sRGB/Display)
-    gl_FragColor = linearToOutputTexel(c);
-  }
+  // правильный вывод в sRGB (как обычные материалы three)
+  gl_FragColor = linearToOutputTexel(c);
+}
 `,
       depthTest: false,
       depthWrite: false,
