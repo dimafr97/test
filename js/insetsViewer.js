@@ -163,46 +163,36 @@ function markOitTransparentMeshes(root, materialName) {
 
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
-  const isOpaque = currentOpacity >= 0.9995;
+  const needTransparent = currentOpacity < 0.9995;
 
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // хотим видеть "изнутри"
     m.side = THREE.DoubleSide;
-
-    if (isOpaque) {
-      // ✅ 100% = реально непрозрачный материал
-      m.transparent = false;
-      m.opacity = 1;
-
-      // обычное поведение глубины
-      m.depthTest = true;
-      m.depthWrite = true;
-
-      // на всякий случай
-      m.forceSinglePass = false;
-
-      m.needsUpdate = true;
-      continue;
-    }
-
-    // ✅ прозрачный режим (OIT)
-    // В OIT лучше держать чуть меньше 1.0
-    const op = Math.max(0, Math.min(0.9999, currentOpacity));
-
-    m.transparent = true;
-    m.opacity = op;
-
-    // "видно внутри/сквозь"
     m.depthTest = true;
-    m.depthWrite = false;
+
+    if (!needTransparent) {
+      // 100% = реально opaque
+      m.transparent = false;
+      m.opacity = 1.0;
+      m.depthWrite = true;
+    } else {
+      // прозрачный режим (для OIT)
+      m.transparent = true;
+      m.opacity = currentOpacity; // ВАЖНО: НЕ зажимать до 0.9999
+      m.depthWrite = false;
+    }
 
     m.forceSinglePass = false;
     m.needsUpdate = true;
   }
-}
 
+  // после изменения opacity обязательно обновляем флаги OIT
+  if (currentRoot) {
+    const meta = getInsetMeta(currentId);
+    if (meta) markOitTransparentMeshes(currentRoot, meta.opacityMaterialName, currentOpacity);
+  }
+}
 
 // ✅ Применить “плоские” цвета материалам сечений (например "2" и "3")
 // meta.materialColors ожидается как объект: { "2": "#ff3b30", "3": "#34c759" }
