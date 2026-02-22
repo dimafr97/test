@@ -117,6 +117,21 @@ function applyInsetColors(root, meta) {
       // ✅ Сечения (плоскости) всегда полупрозрачные
       m.transparent = true;
       m.opacity = 0.6;
+      m.depthWrite = false;
+      m.depthTest = true;
+            // ✅ фикс мерцания/скачков от ракурса:
+      // 1) не даём трехе рисовать DoubleSide в 2 прохода (это часто даёт "скачки")
+      m.forceSinglePass = true;
+
+      // 2) отодвигаем сечение по depth (убираем z-fighting с конусом/кубом)
+      m.polygonOffset = true;
+      m.polygonOffsetFactor = -2;
+      m.polygonOffsetUnits = -2;
+
+      // 3) нормальный блендинг (на всякий случай)
+      m.blending = THREE.NormalBlending;
+            // ✅ рисуем сечения поверх тел (стабильнее, без "то внутри/то снаружи")
+      obj.renderOrder = 10;
 
       m.needsUpdate = true;
     }
