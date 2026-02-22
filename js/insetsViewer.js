@@ -31,8 +31,9 @@ export function initInsetsViewer(refs) {
 
 function enterInsetMode() {
   document.body.classList.add("inset-mode");
-    setInsetBlendEnabled(true);
-  setInsetBlendState(0, controlledMaterials); // на старте смешивания нет
+
+  setInsetBlendEnabled(true);
+  setInsetBlendState(0, []); // ✅ пока модель не загружена — материалов ещё нет
 
   // ✅ Сбрасываем прозрачность на 100% при входе во Врезки
   currentOpacity = 1;
