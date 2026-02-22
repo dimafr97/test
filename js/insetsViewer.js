@@ -130,8 +130,9 @@ function applyInsetColors(root, meta) {
 
       // 3) нормальный блендинг (на всякий случай)
       m.blending = THREE.NormalBlending;
-
-
+            // ✅ сечения рисуем поверх тел
+      obj.renderOrder = 10;
+    
       m.needsUpdate = true;
     }
   });
