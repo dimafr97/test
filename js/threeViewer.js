@@ -180,24 +180,26 @@ rtB.samples = 4;
         }
       `,
 fragmentShader: `
+  precision highp float;
+
+  varying vec2 vUv;
   uniform sampler2D tA;
   uniform sampler2D tB;
   uniform float uMix;
-  varying vec2 vUv;
 
-#include <common>
-#include <encodings_pars_fragment>
+  // Простой вывод в sRGB (примерно как у three при output = sRGB)
+  vec3 toSRGB(vec3 c) {
+    return pow(max(c, 0.0), vec3(1.0 / 2.2));
+  }
 
-void main() {
-  vec4 a = texture2D(tA, vUv);
-  vec4 b = texture2D(tB, vUv);
+  void main() {
+    vec4 a = texture2D(tA, vUv);
+    vec4 b = texture2D(tB, vUv);
 
-  // смешиваем в линейном пространстве
-  vec4 c = mix(a, b, clamp(uMix, 0.0, 1.0));
+    vec4 c = mix(a, b, clamp(uMix, 0.0, 1.0));
 
-  // правильный вывод в sRGB (как обычные материалы three)
-  gl_FragColor = linearToOutputTexel(c);
-}
+    gl_FragColor = vec4(toSRGB(c.rgb), c.a);
+  }
 `,
       depthTest: false,
       depthWrite: false,
