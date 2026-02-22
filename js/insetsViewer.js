@@ -64,17 +64,44 @@ function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // ✅ рисуем обе стороны (чтобы изнутри тоже было видно)
     m.side = THREE.DoubleSide;
 
-    const needTransparent = currentOpacity < 0.999;
+    // -------------------------------
+    // НОРМАЛЬНАЯ ПРОЗРАЧНОСТЬ 0–70%
+    // -------------------------------
+    if (currentOpacity <= 0.7) {
 
-    // Важно: opacity работает только если transparent=true
-    m.transparent = needTransparent;
-    m.opacity = currentOpacity;
+      m.transparent = true;
+      m.opacity = currentOpacity;
 
-    // чтобы прозрачность работала адекватно (и видеть "внутри")
-    m.depthWrite = !needTransparent;
+      m.depthWrite = false;
+      m.depthTest = true;
+
+    }
+    // -----------------------------------
+    // ИМИТАЦИЯ ПЕРЕХОДА 70% → 100%
+    // -----------------------------------
+    else {
+
+      // коэффициент перехода 0 → 1
+      const t = (currentOpacity - 0.7) / 0.3;
+
+      // визуально фиксируем прозрачность на 0.7
+      m.transparent = true;
+      m.opacity = 0.7;
+
+      // плавно возвращаем depthWrite
+      // ближе к 100% — больше "непрозрачности"
+      if (t > 0.5) {
+        m.transparent = false;
+        m.opacity = 1;
+        m.depthWrite = true;
+      } else {
+        m.depthWrite = false;
+      }
+
+      m.depthTest = true;
+    }
 
     m.needsUpdate = true;
   }
