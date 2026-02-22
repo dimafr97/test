@@ -118,10 +118,6 @@ function applyInsetColors(root, meta) {
       m.transparent = true;
       m.opacity = 0.6;
 
-      // Чтобы плоскости не "забивали" глубину и не ломали прозрачность вокруг
-      m.depthWrite = false;
-      m.depthTest = true;
-
       m.needsUpdate = true;
     }
   });
