@@ -8,6 +8,16 @@ let camera = null;
 let renderer = null;
 
 let currentModel = null;
+// ===== Inset blend (70..100) =====
+let insetBlendEnabled = false;
+let insetBlendFactor = 0;           // 0..1 (0 = только passA, 1 = только passB)
+let insetControlledMaterials = [];  // материалы, которые делаем opaque во втором проходе
+
+let rtA = null;
+let rtB = null;
+let postScene = null;
+let postCam = null;
+let postQuad = null;
 
 const state = {
   radius: 4.5,
@@ -51,7 +61,11 @@ export function initThree(canvas) {
     state.rotY += (state.targetRotY - state.rotY) * 0.22;
 
     updateCameraPosition();
-    renderer.render(scene, camera);
+        if (insetBlendEnabled && insetBlendFactor > 0.0001) {
+      renderWithInsetBlend();
+    } else {
+      renderer.render(scene, camera);
+    }
   });
 }
 
@@ -101,6 +115,144 @@ export function resize() {
   camera.updateProjectionMatrix();
 
   renderer.setSize(window.innerWidth, window.innerHeight);
+    // чтобы RenderTarget пересоздались под новый размер
+  if (insetBlendEnabled) {
+    ensureBlendResources();
+  }
+}
+
+// Включаем/выключаем режим смешивания (используется ТОЛЬКО во врезках)
+export function setInsetBlendEnabled(enabled) {
+  insetBlendEnabled = !!enabled;
+}
+
+// Обновляем фактор смешивания и список материалов, которые должны стать opaque во 2-м проходе
+export function setInsetBlendState(factor01, controlledMats) {
+  insetBlendFactor = THREE.MathUtils.clamp(Number(factor01) || 0, 0, 1);
+  insetControlledMaterials = Array.isArray(controlledMats) ? controlledMats : [];
+}
+
+function ensureBlendResources() {
+  if (!renderer) return;
+
+  const size = new THREE.Vector2();
+  renderer.getSize(size);
+
+  const w = Math.max(1, Math.floor(size.x));
+  const h = Math.max(1, Math.floor(size.y));
+
+  // RT параметры (чтобы не было странного пересвета)
+  const params = {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    format: THREE.RGBAFormat,
+    depthBuffer: true,
+    stencilBuffer: false,
+  };
+
+  if (!rtA || rtA.width !== w || rtA.height !== h) {
+    rtA?.dispose?.();
+    rtA = new THREE.WebGLRenderTarget(w, h, params);
+  }
+
+  if (!rtB || rtB.width !== w || rtB.height !== h) {
+    rtB?.dispose?.();
+    rtB = new THREE.WebGLRenderTarget(w, h, params);
+  }
+
+  if (!postScene) {
+    postScene = new THREE.Scene();
+    postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        tA: { value: null },
+        tB: { value: null },
+        uMix: { value: 0 },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position.xy, 0.0, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tA;
+        uniform sampler2D tB;
+        uniform float uMix;
+        varying vec2 vUv;
+
+        void main() {
+          vec4 a = texture2D(tA, vUv);
+          vec4 b = texture2D(tB, vUv);
+
+          // ВАЖНО: именно mix(), не additive.
+          gl_FragColor = mix(a, b, clamp(uMix, 0.0, 1.0));
+        }
+      `,
+      depthTest: false,
+      depthWrite: false,
+    });
+
+    const geo = new THREE.PlaneGeometry(2, 2);
+    postQuad = new THREE.Mesh(geo, mat);
+    postScene.add(postQuad);
+  }
+}
+
+function renderWithInsetBlend() {
+  if (!renderer || !camera) return;
+
+  ensureBlendResources();
+
+  // 1) Pass A: как есть (обычно это “прозрачность на 70%”)
+  renderer.setRenderTarget(rtA);
+  renderer.clear(true, true, true);
+  renderer.render(scene, camera);
+
+  // 2) Pass B: временно делаем контролируемые материалы полностью opaque
+  const saved = [];
+  for (const m of insetControlledMaterials) {
+    if (!m) continue;
+    saved.push({
+      m,
+      transparent: m.transparent,
+      opacity: m.opacity,
+      depthWrite: m.depthWrite,
+      depthTest: m.depthTest,
+    });
+
+    m.transparent = false;
+    m.opacity = 1;
+    m.depthWrite = true;
+    m.depthTest = true;
+    m.needsUpdate = true;
+  }
+
+  renderer.setRenderTarget(rtB);
+  renderer.clear(true, true, true);
+  renderer.render(scene, camera);
+
+  // 3) Возвращаем материалы обратно
+  for (const s of saved) {
+    const m = s.m;
+    m.transparent = s.transparent;
+    m.opacity = s.opacity;
+    m.depthWrite = s.depthWrite;
+    m.depthTest = s.depthTest;
+    m.needsUpdate = true;
+  }
+
+  // 4) Финальный вывод: смешиваем 2 текстуры на экран
+  renderer.setRenderTarget(null);
+
+  postQuad.material.uniforms.tA.value = rtA.texture;
+  postQuad.material.uniforms.tB.value = rtB.texture;
+  postQuad.material.uniforms.uMix.value = insetBlendFactor;
+
+  renderer.clear(true, true, true);
+  renderer.render(postScene, postCam);
 }
 
 function setupLights() {
