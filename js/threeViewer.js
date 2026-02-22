@@ -358,7 +358,7 @@ const fsLighting = /* glsl */ `
     transparent: true,
     depthTest: true,
     depthWrite: false,
-    side: THREE.FrontSide,
+    side: THREE.DoubleSide,
   });
 
   // additive blending
@@ -394,7 +394,7 @@ const fsReveal = /* glsl */ `
     transparent: true,
     depthTest: true,
     depthWrite: false,
-    side: THREE.FrontSide,
+    side: THREE.DoubleSide,
   });
 
   revealMat.blending = THREE.CustomBlending;
