@@ -33,7 +33,6 @@ export function initInsetsViewer(refs) {
 
 function enterInsetMode() {
   document.body.classList.add("inset-mode");
-  setOitEnabled(false);   // ✅ OIT включаем только во врезках
 
   currentOpacity = 1;
   if (dom?.insetOpacitySlider) dom.insetOpacitySlider.value = "100";
