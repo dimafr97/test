@@ -283,58 +283,70 @@ function buildOitMaterials() {
     }
   `;
 
-  const fsLighting = /* glsl */ `
-    precision highp float;
+const fsLighting = /* glsl */ `
+  precision highp float;
 
-    varying vec3 vNormalW;
-    varying vec3 vPosW;
+  uniform vec3 uColor;
+  uniform float uOpacity;
 
-    uniform vec3 uColor;
-    uniform float uOpacity;
+  varying vec3 vN;
+  varying vec3 vPosW;
 
-    // направления света (приблизительно как в setupLights)
-    // можно потом подстроить, если захочешь
-    vec3 lightDir(vec3 p, vec3 lp){
-      return normalize(lp - p);
-    }
+  // нормализованный "ближний" clamp, без искусственного 0.9999
+  float saturate(float x) { return clamp(x, 0.0, 1.0); }
 
-    void main() {
-      vec3 N = normalize(vNormalW);
+  void main() {
+    vec3 N = normalize(vN);
 
-      // DoubleSide: если смотрим на обратную сторону — разворачиваем нормаль
-      // (иначе “задние грани” темнеют/исчезают)
-      if (!gl_FrontFacing) N = -N;
+    // --- как в threeViewer.js (setupLights):
+    // key:  color 0xffc4a0, intensity 1.85, position (5.5, 6.0, 3.5)
+    // fill: color 0xcad8ff, intensity 0.35, position (-7, 3.5, 2)
+    // rim:  color 0xffffff, intensity 0.5, position (-3.5, 5, -7.5)
+    // coldRim: color 0xd8e4ff, intensity 0.1, position (2.5, 3.5, -5)
+    // ambient: 0xffffff * 0.04
+    // hemi: sky 0xffffff, ground 0x0a0a0a, intensity 0.07
 
-      // Позиции источников (как у тебя)
-      vec3 keyPos = vec3(5.5, 6.0, 3.5);
-      vec3 fillPos = vec3(-7.0, 3.5, 2.0);
-      vec3 rimPos = vec3(-3.5, 5.0, -7.5);
+    // ВАЖНО: DirectionalLight = постоянное направление,
+    // т.к. target по умолчанию (0,0,0):
+    // directionToLight = normalize(light.position)
+    vec3 Lkey  = normalize(vec3( 5.5, 6.0,  3.5));
+    vec3 Lfill = normalize(vec3(-7.0, 3.5,  2.0));
+    vec3 Lrim  = normalize(vec3(-3.5, 5.0, -7.5));
+    vec3 Lcold = normalize(vec3( 2.5, 3.5, -5.0));
 
-      vec3 Lk = lightDir(vPosW, keyPos);
-      vec3 Lf = lightDir(vPosW, fillPos);
-      vec3 Lr = lightDir(vPosW, rimPos);
+    vec3 Ckey  = vec3(1.0, 0.7686, 0.6275) * 1.85; // ffc4a0
+    vec3 Cfill = vec3(0.7922, 0.8471, 1.0) * 0.35; // cad8ff
+    vec3 Crim  = vec3(1.0) * 0.5;                  // white
+    vec3 Ccold = vec3(0.8471, 0.8941, 1.0) * 0.1;  // d8e4ff
 
-      float dk = max(dot(N, Lk), 0.0);
-      float df = max(dot(N, Lf), 0.0);
-      float dr = max(dot(N, Lr), 0.0);
+    // Diffuse (Lambert)
+    float dKey  = max(dot(N, Lkey),  0.0);
+    float dFill = max(dot(N, Lfill), 0.0);
+    float dRim  = max(dot(N, Lrim),  0.0);
+    float dCold = max(dot(N, Lcold), 0.0);
 
-      // интенсивности близко к твоим
-      vec3 lit =
-        uColor * (0.10 + 1.85*dk + 0.35*df) +
-        uColor * (0.15*dr);
+    vec3 diffuse = Ckey*dKey + Cfill*dFill + Crim*dRim + Ccold*dCold;
 
-      // clamp чтобы не “выбивало” в белое
-      lit = clamp(lit, 0.0, 1.0);
+    // Ambient + hemisphere (очень мягко)
+    vec3 ambient = vec3(1.0) * 0.04;
+    // hemi: смешиваем sky/ground по N.y
+    float h = N.y * 0.5 + 0.5;
+    vec3 sky = vec3(1.0);
+    vec3 ground = vec3(0.0392, 0.0392, 0.0392); // 0x0a0a0a
+    vec3 hemi = mix(ground, sky, h) * 0.07;
 
-      // ---- Weighted Blended OIT накопление ----
-      // Вес можно делать зависимым от alpha, чтобы слои выглядели приятнее
-      float a = clamp(uOpacity, 0.0, 0.9999);
-      float w = max(0.01, a); // простой вес
+    vec3 lit = uColor * (ambient + hemi + diffuse);
 
-      // Accum: rgb += lit * a * w, a += a*w
-      gl_FragColor = vec4(lit * a * w, a * w);
-    }
-  `;
+    // opacity (ВАЖНО: теперь можно 1.0)
+    float a = clamp(uOpacity, 0.0, 1.0);
+
+    // вес (простой, но стабильный)
+    float w = max(0.01, a);
+
+    // Accum: rgb += lit * a*w, a += a*w
+    gl_FragColor = vec4(lit * a * w, a * w);
+  }
+`;
 
   accumMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -346,7 +358,7 @@ function buildOitMaterials() {
     transparent: true,
     depthTest: true,
     depthWrite: false,
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide,
   });
 
   // additive blending
@@ -382,7 +394,7 @@ const fsReveal = /* glsl */ `
     transparent: true,
     depthTest: true,
     depthWrite: false,
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide,
   });
 
   revealMat.blending = THREE.CustomBlending;
