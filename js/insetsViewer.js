@@ -114,6 +114,14 @@ function applyInsetColors(root, meta) {
       if ("metalness" in m) m.metalness = 0;
       if ("roughness" in m) m.roughness = 1;
 
+      // ✅ Сечения (плоскости) всегда полупрозрачные
+      m.transparent = true;
+      m.opacity = 0.6;
+
+      // Чтобы плоскости не "забивали" глубину и не ломали прозрачность вокруг
+      m.depthWrite = false;
+      m.depthTest = true;
+
       m.needsUpdate = true;
     }
   });
