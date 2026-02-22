@@ -208,7 +208,7 @@ function applyOpacityToControlled() {
     const meta = getInsetMeta(currentId);
     if (meta) {
       // если 100% — можно вообще не считать OIT (ускорение + меньше багов)
-      markOitTransparentMeshes(currentRoot, meta.opacityMaterialName);
+      markOitTransparentMeshes(currentRoot, meta.opacityMaterialName, currentOpacity);
     }
   }
 
@@ -290,12 +290,6 @@ function setupUiHandlers() {
 dom.insetOpacitySlider?.addEventListener("input", () => {
   const v = Number(dom.insetOpacitySlider.value || 100);
   currentOpacity = Math.max(0, Math.min(1, v / 100));
-
-  // обновляем OIT-флаги каждый раз
-  if (currentRoot) {
-    const meta = getInsetMeta(currentId);
-    if (meta) markOitTransparentMeshes(currentRoot, meta.opacityMaterialName, currentOpacity);
-  }
 
   applyOpacityToControlled();
 });
