@@ -61,11 +61,11 @@ export function initThree(canvas) {
     state.rotY += (state.targetRotY - state.rotY) * 0.22;
 
     updateCameraPosition();
-        if (insetBlendEnabled && insetBlendFactor > 0.0001) {
-      renderWithInsetBlend();
-    } else {
-      renderer.render(scene, camera);
-    }
+if (insetBlendEnabled) {
+  renderWithInsetBlend();  // ✅ всегда через композит, даже при 0 и 1
+} else {
+  renderer.render(scene, camera);
+}
   });
 }
 
@@ -135,11 +135,10 @@ export function setInsetBlendState(factor01, controlledMats) {
 function ensureBlendResources() {
   if (!renderer) return;
 
-  const size = new THREE.Vector2();
-  renderer.getSize(size);
-
-  const w = Math.max(1, Math.floor(size.x));
-  const h = Math.max(1, Math.floor(size.y));
+const size = new THREE.Vector2();
+renderer.getDrawingBufferSize(size);  // ✅ ВАЖНО: именно drawing buffer, а не CSS size
+const w = Math.max(1, Math.floor(size.x));
+const h = Math.max(1, Math.floor(size.y));
 
   // RT параметры (чтобы не было странного пересвета)
   const params = {
@@ -159,6 +158,9 @@ function ensureBlendResources() {
     rtB?.dispose?.();
     rtB = new THREE.WebGLRenderTarget(w, h, params);
   }
+  // ✅ MSAA (работает в WebGL2, в Telegram чаще всего WebGL2 есть)
+rtA.samples = 4;
+rtB.samples = 4;
 
   if (!postScene) {
     postScene = new THREE.Scene();
@@ -177,22 +179,28 @@ function ensureBlendResources() {
           gl_Position = vec4(position.xy, 0.0, 1.0);
         }
       `,
-      fragmentShader: `
-        uniform sampler2D tA;
-        uniform sampler2D tB;
-        uniform float uMix;
-        varying vec2 vUv;
+fragmentShader: `
+  uniform sampler2D tA;
+  uniform sampler2D tB;
+  uniform float uMix;
+  varying vec2 vUv;
 
-        void main() {
-          vec4 a = texture2D(tA, vUv);
-          vec4 b = texture2D(tB, vUv);
+  #include <colorspace_pars_fragment>
 
-          // ВАЖНО: именно mix(), не additive.
-          gl_FragColor = mix(a, b, clamp(uMix, 0.0, 1.0));
-        }
-      `,
+  void main() {
+    vec4 a = texture2D(tA, vUv);
+    vec4 b = texture2D(tB, vUv);
+
+    // ✅ Смешиваем в LINEAR
+    vec4 c = mix(a, b, clamp(uMix, 0.0, 1.0));
+
+    // ✅ Превращаем в правильный output (sRGB/Display)
+    gl_FragColor = linearToOutputTexel(c);
+  }
+`,
       depthTest: false,
       depthWrite: false,
+      toneMapped: false,
     });
 
     const geo = new THREE.PlaneGeometry(2, 2);
