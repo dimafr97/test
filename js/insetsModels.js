@@ -1,36 +1,61 @@
 // js/insetsModels.js
+//
+// ✅ Единый конфиг ВРЕЗОК.
+// Добавить новую врезку = добавить один объект в RAW_INSETS.
+// models.js сам сможет загрузить source-модели по sourcePath (без правок models.js).
 
-// ✅ Список ВРЕЗОК — максимально компактный.
-// Каждая врезка ссылается на модель из MODELS через sourceId.
-// Добавить новую врезку = добавить один объект сюда.
-
-export const INSETS = [
+const RAW_INSETS = [
   {
     id: "inset_1",
-    sourceId: "inset_1_source",     // ✅ это id из MODELS
     name: "Врезка 1",
     desc: "Композиция пересекающихся примитивов",
 
-    // ✅ какой материал управляется прозрачностью (по имени материала в glTF)
+    // ✅ путь в защищённом API (это то, что идёт после ?path=)
+    // Пути ты сказал не менялись:
+    sourcePath: "models/1.gltf",
+
+    // ✅ материал тела, которым управляет ползунок прозрачности
     opacityMaterialName: "1",
 
-    // ✅ (опционально) задать цвета сечений по именам материалов
-    // если в модели уже выставлены цвета — можно удалить этот блок
+    // ✅ материалы сечений (теперь 2/3/4)
+    sectionMaterialNames: ["2", "3", "4"],
+
+    // ✅ цвета сечений (опционально)
     materialColors: {
-      "3": "#ff3b30", // красный
-      "4": "#34c759"  // зелёный
+      "2": "#ffd60a",
+      "3": "#ff3b30",
+      "4": "#34c759"
     }
   },
 
-  // (оставим тестовый мольберт, пока не нужен — можно удалить)
+  // (тестовый мольберт оставим как есть: он уже есть в MODELS)
   {
     id: "inset_molbert",
     sourceId: "molbert",
     name: "Мольберт (врезка)",
     desc: "Тестовый объект врезок",
-    opacityMaterialName: "3"
+
+    opacityMaterialName: "3",
+    sectionMaterialNames: ["1", "2", "4"]
+    // materialColors можно не задавать
   }
 ];
+
+// ✅ Автоматически генерим sourceId, если не задан вручную
+export const INSETS = RAW_INSETS.map((m) => ({
+  ...m,
+  sourceId: m.sourceId || `${m.id}_source`
+}));
+
+// ✅ Описание “source-моделей” для загрузчика (models.js)
+export const INSET_SOURCE_DEFS = INSETS
+  .filter((m) => !!m.sourcePath)
+  .map((m) => ({
+    id: m.sourceId,
+    name: m.name,
+    desc: m.desc,
+    path: m.sourcePath
+  }));
 
 export function getInsetMeta(id) {
   return INSETS.find((m) => m.id === id) || null;
