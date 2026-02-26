@@ -8,6 +8,8 @@ let camera = null;
 let renderer = null;
 
 let currentModel = null;
+// ===== CAD overlay (точки/линии для врезок) =====
+let cadGroup = null;
 // ===== Inset blend (70..100) =====
 let insetBlendEnabled = false;
 let insetBlendFactor = 0;           // 0..1 (0 = только passA, 1 = только passB)
@@ -33,6 +35,10 @@ const state = {
 export function initThree(canvas) {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050506);
+    // CAD overlay (точки/линии) — отдельная группа поверх модели
+  cadGroup = new THREE.Group();
+  cadGroup.name = "cad-overlay";
+  scene.add(cadGroup);
 
   camera = new THREE.PerspectiveCamera(
     40,
@@ -130,6 +136,86 @@ export function setInsetBlendEnabled(enabled) {
 export function setInsetBlendState(factor01, controlledMats) {
   insetBlendFactor = THREE.MathUtils.clamp(Number(factor01) || 0, 0, 1);
   insetControlledMaterials = Array.isArray(controlledMats) ? controlledMats : [];
+}
+
+// ===============================
+// CAD overlay API (для врезок)
+// ===============================
+export function clearCadOverlay() {
+  if (!cadGroup) return;
+
+  for (const child of cadGroup.children) {
+    child.geometry?.dispose?.();
+    child.material?.dispose?.();
+  }
+
+  cadGroup.clear();
+}
+
+export function setCadOverlay(spec) {
+  clearCadOverlay();
+  if (!cadGroup) return;
+  if (!spec || !Array.isArray(spec.points) || spec.points.length === 0) return;
+
+  // карта точек id -> Vector3
+  const pointMap = new Map();
+  for (const p of spec.points) {
+    pointMap.set(String(p.id), new THREE.Vector3(p.x, p.y, p.z));
+  }
+
+  // ---- точки ----
+  const pos = new Float32Array(spec.points.length * 3);
+  spec.points.forEach((p, i) => {
+    pos[i * 3 + 0] = p.x;
+    pos[i * 3 + 1] = p.y;
+    pos[i * 3 + 2] = p.z;
+  });
+
+  const pointsGeo = new THREE.BufferGeometry();
+  pointsGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+
+  const pointsMat = new THREE.PointsMaterial({
+    color: 0x2f6bff,
+    size: 8,
+    sizeAttenuation: false,
+    depthTest: false,
+    depthWrite: false
+  });
+
+  const pointsObj = new THREE.Points(pointsGeo, pointsMat);
+  pointsObj.renderOrder = 2000;
+  cadGroup.add(pointsObj);
+
+  // ---- линии ----
+  if (Array.isArray(spec.lines) && spec.lines.length) {
+    const linePos = [];
+
+    for (const seg of spec.lines) {
+      const a = pointMap.get(String(seg[0]));
+      const b = pointMap.get(String(seg[1]));
+      if (!a || !b) continue;
+
+      linePos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    }
+
+    if (linePos.length) {
+      const lineGeo = new THREE.BufferGeometry();
+      lineGeo.setAttribute(
+        "position",
+        new THREE.BufferAttribute(new Float32Array(linePos), 3)
+      );
+
+      const lineMat = new THREE.LineBasicMaterial({
+        color: 0x2f6bff,
+        depthTest: false,
+        depthWrite: false
+      });
+
+      const linesObj = new THREE.LineSegments(lineGeo, lineMat);
+      linesObj.renderOrder = 1999;
+      cadGroup.add(linesObj);
+    }
+  }
 }
 
 function ensureBlendResources() {
