@@ -11,7 +11,7 @@ const RAW_INSETS = [
   desc: "Композиция пересекающихся примитивов",
 
   // путь в защищённом API (после ?path=)
-  sourcePath: "models/2.gltf",
+  sourcePath: "models/2.glb",
 
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
