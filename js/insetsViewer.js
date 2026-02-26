@@ -89,10 +89,17 @@ function applyOpacityToControlled() {
 // ✅ Применить “плоские” цвета материалам сечений (например "2" и "3")
 // meta.materialColors ожидается как объект: { "2": "#ff3b30", "3": "#34c759" }
 function applyInsetColors(root, meta) {
-  if (!root || !meta || !meta.materialColors) return;
+if (!root || !meta) return;
 
-  const colors = meta.materialColors;
+// цвета могут быть пустыми — это нормально
+const colors = meta.materialColors || {};
 
+// список материалов-сечений
+const sectionList =
+  Array.isArray(meta.sectionMaterialNames) && meta.sectionMaterialNames.length
+    ? meta.sectionMaterialNames
+    : ["3", "4"];
+  
   root.traverse((obj) => {
     if (!obj.isMesh) return;
 
@@ -101,41 +108,42 @@ function applyInsetColors(root, meta) {
     for (const m of mats) {
       if (!m) continue;
 
-      const key = String(m.name);
-      const hex = colors[key];
-      if (!hex) continue;
+     const key = String(m.name);
+const isSection = sectionList.includes(key);
+const hex = colors[key];
 
-      // ✅ у PBR материалов есть .color
-      if (m.color) m.color.set(hex);
-      m.side = THREE.DoubleSide;
+if (!isSection && !hex) continue;
 
+// цвет — только если есть hex
+if (hex && m.color) m.color.set(hex);
 
-      // ✅ делаем “матовый пластик”, чтобы цвет выглядел чисто и стабильно
-      if ("metalness" in m) m.metalness = 0;
-      if ("roughness" in m) m.roughness = 1;
+// DoubleSide — если нужен всем
+m.side = THREE.DoubleSide;
 
-      // ✅ Сечения (плоскости) всегда полупрозрачные
-      m.transparent = true;
-      m.opacity = 0.6;
-      m.depthWrite = false;
-      m.depthTest = true;
-            // ✅ фикс мерцания/скачков от ракурса:
-      // 1) не даём трехе рисовать DoubleSide в 2 прохода (это часто даёт "скачки")
-      m.forceSinglePass = true;
+// матовый вид
+if ("metalness" in m) m.metalness = 0;
+if ("roughness" in m) m.roughness = 1;
 
-      // 2) отодвигаем сечение по depth (убираем z-fighting с конусом/кубом)
-      m.polygonOffset = true;
-      m.polygonOffsetFactor = 1;
-      m.polygonOffsetUnits = 1;
+// только сечения — плёнка
+if (isSection) {
+  m.transparent = true;
+  m.opacity = 0.6;
+  m.depthWrite = false;
+  m.depthTest = true;
 
-      // 3) нормальный блендинг (на всякий случай)
-      m.blending = THREE.NormalBlending;
-           // Стабильный порядок: материал "3" всегда ниже, материал "4" всегда выше
-if (key === "3") obj.renderOrder = 20;
-else if (key === "4") obj.renderOrder = 21;
-else obj.renderOrder = 20;
-    
-      m.needsUpdate = true;
+  m.forceSinglePass = true;
+
+  m.polygonOffset = true;
+  m.polygonOffsetFactor = 1;
+  m.polygonOffsetUnits = 1;
+
+  m.blending = THREE.NormalBlending;
+
+  const idx = sectionList.indexOf(key);
+  obj.renderOrder = 20 + (idx >= 0 ? idx : 0);
+}
+
+m.needsUpdate = true;
     }
   });
 }
