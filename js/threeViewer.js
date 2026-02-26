@@ -65,23 +65,24 @@ cadScene.add(cadGroup);
   setupLights();
   initControls(canvas);
 
-  renderer.setAnimationLoop(() => {
-    state.rotX += (state.targetRotX - state.rotX) * 0.22;
-    state.rotY += (state.targetRotY - state.rotY) * 0.22;
+renderer.setAnimationLoop(() => {
+  state.rotX += (state.targetRotX - state.rotX) * 0.22;
+  state.rotY += (state.targetRotY - state.rotY) * 0.22;
 
-    updateCameraPosition();
-if (insetBlendEnabled) {
-  renderWithInsetBlend();  // ✅ всегда через композит, даже при 0 и 1
-} else {
-  renderer.render(scene, camera);
+  updateCameraPosition();
 
-  // ✅ CAD поверх всего (в обычном режиме)
+  if (insetBlendEnabled) {
+    renderWithInsetBlend();  // ✅ всегда через композит, даже при 0 и 1
+  } else {
+    renderer.render(scene, camera);
+  }
+
+  // ✅ CAD поверх финального кадра (и обычного, и inset-blend)
   if (cadScene && cadGroup && cadGroup.children.length) {
     renderer.clearDepth();
     renderer.render(cadScene, camera);
   }
-}
-  });
+});
 }
 
 export function setModel(root) {
