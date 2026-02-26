@@ -155,7 +155,44 @@ m.needsUpdate = true;
   });
 }
 
+// ===============================
+// CAD points from glTF nodes (Dummy/Point helpers)
+// ===============================
+function buildCadSpecFromModel(root, cadMeta) {
+  if (!root || !cadMeta || !cadMeta.fromNodes) return null;
 
+  const wanted = new Set((cadMeta.pointNames || []).map((s) => String(s)));
+  if (!wanted.size) return null;
+
+  // Собираем позиции "точек" из объектов по имени
+  const found = new Map(); // id -> {x,y,z}
+
+  root.traverse((obj) => {
+    const name = String(obj.name || "");
+    if (!wanted.has(name)) return;
+
+    // берём мировую позицию (она уже с учётом normalizeModel/rootGroup.scale/center)
+    const p = new THREE.Vector3();
+    obj.getWorldPosition(p);
+
+    found.set(name, { id: name, x: p.x, y: p.y, z: p.z });
+
+    // на всякий случай скрываем helper, если он вдруг экспортнулся как mesh
+    obj.visible = false;
+  });
+
+  // Формируем points в порядке pointNames (стабильный порядок)
+  const points = [];
+  for (const id of wanted) {
+    const p = found.get(id);
+    if (p) points.push(p);
+  }
+
+  // Линии берём из конфигурации (как ты задашь)
+  const lines = Array.isArray(cadMeta.lines) ? cadMeta.lines : [];
+
+  return { points, lines };
+}
 
 function setupUiHandlers() {
   const { prevBtn, nextBtn, backBtn } = dom;
@@ -268,9 +305,14 @@ loadModel(meta.sourceId || meta.id, {
     applyInsetColors(root, meta);
 
     // ✅ 2) показываем модель в threeViewer
-    threeSetModel(root);
-        // ✅ CAD линии/точки для этой врезки (если заданы)
-    setCadOverlay(meta.cad);
+threeSetModel(root);
+
+// ✅ CAD: либо из конфигурации (ручные coords), либо из Dummy/Point внутри glTF
+const cadSpec = meta?.cad?.fromNodes
+  ? buildCadSpecFromModel(root, meta.cad)
+  : meta.cad;
+
+setCadOverlay(cadSpec);
 
     // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
     controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
