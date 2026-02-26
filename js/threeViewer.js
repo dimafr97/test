@@ -10,6 +10,7 @@ let renderer = null;
 let currentModel = null;
 // ===== CAD overlay (точки/линии для врезок) =====
 let cadGroup = null;
+let cadScene = null;
 // ===== Inset blend (70..100) =====
 let insetBlendEnabled = false;
 let insetBlendFactor = 0;           // 0..1 (0 = только passA, 1 = только passB)
@@ -33,12 +34,14 @@ const state = {
 };
 
 export function initThree(canvas) {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x050506);
-    // CAD overlay (точки/линии) — отдельная группа поверх модели
-  cadGroup = new THREE.Group();
-  cadGroup.name = "cad-overlay";
-  scene.add(cadGroup);
+scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050506);
+
+// CAD overlay: отдельная сцена, рисуется вторым проходом поверх всего
+cadScene = new THREE.Scene();
+cadGroup = new THREE.Group();
+cadGroup.name = "cad-overlay";
+cadScene.add(cadGroup);
 
   camera = new THREE.PerspectiveCamera(
     40,
@@ -71,6 +74,12 @@ if (insetBlendEnabled) {
   renderWithInsetBlend();  // ✅ всегда через композит, даже при 0 и 1
 } else {
   renderer.render(scene, camera);
+
+  // ✅ CAD поверх всего (в обычном режиме)
+  if (cadScene && cadGroup && cadGroup.children.length) {
+    renderer.clearDepth();
+    renderer.render(cadScene, camera);
+  }
 }
   });
 }
@@ -350,6 +359,11 @@ function renderWithInsetBlend() {
 
   renderer.clear(true, true, true);
   renderer.render(postScene, postCam);
+    // ✅ CAD поверх итогового композита (inset-blend)
+  if (cadScene && cadGroup && cadGroup.children.length) {
+    renderer.clearDepth();
+    renderer.render(cadScene, camera);
+  }
 }
 
 function setupLights() {
