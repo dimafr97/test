@@ -2,7 +2,13 @@
 // Viewer для "Врезок": только 3D, без схем и видео.
 // UI: Prev / Галерея / Next остаётся тем же.
 import * as THREE from "three";
-import { setModel as threeSetModel, setInsetBlendEnabled, setInsetBlendState } from "./threeViewer.js";
+import {
+  setModel as threeSetModel,
+  setInsetBlendEnabled,
+  setInsetBlendState,
+  setCadOverlay,
+  clearCadOverlay
+} from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
 
@@ -45,6 +51,7 @@ function exitInsetMode() {
   document.body.classList.remove("inset-mode");
     setInsetBlendState(0, []);
   setInsetBlendEnabled(false);
+    clearCadOverlay();
 }
 // ✅ Собрать все материалы с нужным именем (например "3") внутри загруженной модели
 function collectMaterialsByName(root, name) {
@@ -262,6 +269,8 @@ loadModel(meta.sourceId || meta.id, {
 
     // ✅ 2) показываем модель в threeViewer
     threeSetModel(root);
+        // ✅ CAD линии/точки для этой врезки (если заданы)
+    setCadOverlay(meta.cad);
 
     // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
     controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
