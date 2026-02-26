@@ -485,7 +485,13 @@ if (sharedOldMaterial) {
 await Promise.all(materialTasks);
 
           // pivot/scale correct normalization
-          normalizeModel(rootGroup, scene);
+          // ✅ Нормализация (центр+scale) полезна для арх-моделей,
+// но для inset-source выключаем, чтобы координаты совпадали 1:1 с моделью.
+const isInsetSource = typeof modelId === "string" && modelId.startsWith("inset_") && modelId.endsWith("_source");
+
+if (!isInsetSource) {
+  normalizeModel(rootGroup, scene);
+}
 
           modelCache.set(modelId, rootGroup);
 
