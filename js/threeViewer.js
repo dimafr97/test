@@ -360,11 +360,6 @@ function renderWithInsetBlend() {
 
   renderer.clear(true, true, true);
   renderer.render(postScene, postCam);
-    // ✅ CAD поверх итогового композита (inset-blend)
-  if (cadScene && cadGroup && cadGroup.children.length) {
-    renderer.clearDepth();
-    renderer.render(cadScene, camera);
-  }
 }
 
 function setupLights() {
