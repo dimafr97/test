@@ -77,11 +77,16 @@ renderer.setAnimationLoop(() => {
     renderer.render(scene, camera);
   }
 
-  // ✅ CAD поверх финального кадра (и обычного, и inset-blend)
-  if (cadScene && cadGroup && cadGroup.children.length) {
-    renderer.clearDepth();
-    renderer.render(cadScene, camera);
-  }
+// ✅ CAD поверх финального кадра (НЕ очищаем экран повторно)
+if (cadScene && cadGroup && cadGroup.children.length) {
+  const prevAutoClear = renderer.autoClear;
+  renderer.autoClear = false;
+
+  renderer.clearDepth();           // сбрасываем depth, чтобы CAD был поверх
+  renderer.render(cadScene, camera);
+
+  renderer.autoClear = prevAutoClear;
+}
 });
 }
 
