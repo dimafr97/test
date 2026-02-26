@@ -6,9 +6,18 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 // IndexedDB cache
 import { cachedFetch } from "./cache/cachedFetch.js";
+import { INSET_SOURCE_DEFS } from "./insetsModels.js";
 
 // БАЗОВЫЙ URL для защищённого доступа
 const BASE = "https://api.apparchi.ru/?path=";
+// ✅ Source-модели для врезок (генерятся из insetsModels.js)
+const INSET_SOURCE_MODELS = (INSET_SOURCE_DEFS || []).map((d) => ({
+  id: d.id,
+  name: d.name,
+  desc: d.desc,
+  url: `${BASE}${d.path}`,
+  textures: null
+}));
 export const MODELS = [
   {
     id: "doric",
@@ -244,14 +253,6 @@ video: [
     }
 },
 
-    {
-  id: "inset_1_source",
-  name: "Врезка 1",
-  desc: "Композиция пересекающихся примитивов",
-  url: `${BASE}models/1.gltf`,
-  textures: null // текстур нет
-},
-  
 {
   id: "molbert",
   name: "Мольберт",
@@ -291,7 +292,11 @@ materials: {
 ];
 
 export function getModelMeta(id) {
-  return MODELS.find((m) => m.id === id) || null;
+  return (
+    MODELS.find((m) => m.id === id) ||
+    INSET_SOURCE_MODELS.find((m) => m.id === id) ||
+    null
+  );
 }
 
 // ===================
