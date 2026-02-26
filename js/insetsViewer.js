@@ -158,42 +158,46 @@ m.needsUpdate = true;
 // ===============================
 // CAD points from glTF nodes (Dummy/Point helpers)
 // ===============================
+// ===============================
+// CAD points from glTF nodes (small meshes named a,b,c,d...)
+// ===============================
 function buildCadSpecFromModel(root, cadMeta) {
   if (!root || !cadMeta || !cadMeta.fromNodes) return null;
 
-  const wanted = new Set((cadMeta.pointNames || []).map((s) => String(s)));
-  if (!wanted.size) return null;
+  // Какие имена считаем "точками":
+  // - одиночные буквы: a, b, c...
+  // - или буква + цифры: a1, b12 (на будущее)
+  const pointNameRe = /^[a-z](\d+)?$/;
 
-  // Собираем позиции "точек" из объектов по имени
-  const found = new Map(); // id -> {x,y,z}
+  const points = [];
+  const pointMap = new Map(); // name -> {id,x,y,z}
 
   root.traverse((obj) => {
-    const name = String(obj.name || "");
-    if (!wanted.has(name)) return;
+    const name = String(obj.name || "").trim();
+    if (!pointNameRe.test(name)) return;
 
-    // берём мировую позицию (она уже с учётом normalizeModel/rootGroup.scale/center)
+    // Берём позицию уже после всех трансформаций (в т.ч. normalizeModel)
     const p = new THREE.Vector3();
     obj.getWorldPosition(p);
 
-    found.set(name, { id: name, x: p.x, y: p.y, z: p.z });
+    const pt = { id: name, x: p.x, y: p.y, z: p.z };
+    pointMap.set(name, pt);
+    points.push(pt);
 
-    // на всякий случай скрываем helper, если он вдруг экспортнулся как mesh
+    // Скрываем "точку", если она экспортнулась как видимый mesh
     obj.visible = false;
   });
 
-  // Формируем points в порядке pointNames (стабильный порядок)
-  const points = [];
-  for (const id of wanted) {
-    const p = found.get(id);
-    if (p) points.push(p);
-  }
+  // Стабильный порядок: сортируем по имени (a,b,c... a1,a2...)
+  points.sort((p1, p2) => p1.id.localeCompare(p2.id, "en"));
 
-  // Линии берём из конфигурации (как ты задашь)
   const lines = Array.isArray(cadMeta.lines) ? cadMeta.lines : [];
 
-  return { points, lines };
-}
+  // (опционально) можно отфильтровать линии, у которых нет точек
+  const filteredLines = lines.filter(([a, b]) => pointMap.has(String(a)) && pointMap.has(String(b)));
 
+  return { points, lines: filteredLines };
+}
 function setupUiHandlers() {
   const { prevBtn, nextBtn, backBtn } = dom;
 
