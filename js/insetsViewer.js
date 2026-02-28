@@ -6,6 +6,7 @@ import {
   setModel as threeSetModel,
   setInsetBlendEnabled,
   setInsetBlendState,
+  setInsetSectionBlendState,
   setCadOverlay,
   clearCadOverlay
 } from "./threeViewer.js";
@@ -16,6 +17,7 @@ let dom = null;
 let currentId = null;
 // ✅ Материалы, которыми управляет ползунок прозрачности
 let controlledMaterials = [];
+let sectionMaterials = [];
 let currentOpacity = 1; // 0..1
 
 
@@ -40,6 +42,7 @@ function enterInsetMode() {
 
   setInsetBlendEnabled(true);
   setInsetBlendState(0, []); // ✅ пока модель не загружена — материалов ещё нет
+  setInsetSectionBlendState(0.5, []); // пока не загрузили — материалов нет, но коэффициент фиксируем
 
   // ✅ Сбрасываем прозрачность на 100% при входе во Врезки
   currentOpacity = 1;
@@ -277,6 +280,7 @@ export function showGallery() {
   exitInsetMode();
   controlledMaterials = [];
 currentOpacity = 1;
+  sectionMaterials = [];
 }
 
 export function openById(id) {
@@ -321,6 +325,16 @@ setCadOverlay(cadSpec);
     // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
     controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
     setInsetBlendState(0, controlledMaterials);
+    // ✅ собираем материалы сечений (2/3/4) и включаем их статичный микс
+sectionMaterials = [];
+const secNames = Array.isArray(meta.sectionMaterialNames) ? meta.sectionMaterialNames : [];
+for (const n of secNames) {
+  sectionMaterials.push(...collectMaterialsByName(root, n));
+}
+// уникализируем
+sectionMaterials = Array.from(new Set(sectionMaterials));
+
+setInsetSectionBlendState(0.5, sectionMaterials);
 
     // ✅ 4) применяем текущую прозрачность
     applyOpacityToControlled();
