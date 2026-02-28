@@ -15,9 +15,14 @@ let cadScene = null;
 let insetBlendEnabled = false;
 let insetBlendFactor = 0;           // 0..1 (0 = только passA, 1 = только passB)
 let insetControlledMaterials = [];  // материалы, которые делаем opaque во втором проходе
+// ===== Section blend (сечения: статичный mix) =====
+let insetSectionBlendFactor = 0.5;   // 0..1 (фиксированный микс для сечений)
+let insetSectionMaterials = [];      // материалы сечений, которые делаем opaque в одном из проходов
 
 let rtA = null;
 let rtB = null;
+let rtC = null;
+let rtD = null;
 let postScene = null;
 let postCam = null;
 let postQuad = null;
@@ -153,6 +158,12 @@ export function setInsetBlendState(factor01, controlledMats) {
   insetControlledMaterials = Array.isArray(controlledMats) ? controlledMats : [];
 }
 
+// Обновляем статичный микс сечений и список материалов-сечений
+export function setInsetSectionBlendState(factor01, sectionMats) {
+  insetSectionBlendFactor = THREE.MathUtils.clamp(Number(factor01) || 0, 0, 1);
+  insetSectionMaterials = Array.isArray(sectionMats) ? sectionMats : [];
+}
+
 // ===============================
 // CAD overlay API (для врезок)
 // ===============================
@@ -259,20 +270,34 @@ const h = Math.max(1, Math.floor(size.y));
     rtB?.dispose?.();
     rtB = new THREE.WebGLRenderTarget(w, h, params);
   }
+  if (!rtC || rtC.width !== w || rtC.height !== h) {
+  rtC?.dispose?.();
+  rtC = new THREE.WebGLRenderTarget(w, h, params);
+}
+
+if (!rtD || rtD.width !== w || rtD.height !== h) {
+  rtD?.dispose?.();
+  rtD = new THREE.WebGLRenderTarget(w, h, params);
+}
   // ✅ MSAA (работает в WebGL2, в Telegram чаще всего WebGL2 есть)
 rtA.samples = 4;
 rtB.samples = 4;
+rtC.samples = 4;
+rtD.samples = 4;
 
   if (!postScene) {
     postScene = new THREE.Scene();
     postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
     const mat = new THREE.ShaderMaterial({
-      uniforms: {
-        tA: { value: null },
-        tB: { value: null },
-        uMix: { value: 0 },
-      },
+uniforms: {
+  t00: { value: null }, // body semi + sec semi
+  t10: { value: null }, // body opaque + sec semi
+  t01: { value: null }, // body semi + sec opaque
+  t11: { value: null }, // body opaque + sec opaque
+  uBodyMix: { value: 0 },
+  uSecMix: { value: 0.5 },
+},
       vertexShader: `
         varying vec2 vUv;
         void main() {
@@ -281,26 +306,41 @@ rtB.samples = 4;
         }
       `,
 fragmentShader: `
-  precision highp float;
+precision highp float;
 
-  varying vec2 vUv;
-  uniform sampler2D tA;
-  uniform sampler2D tB;
-  uniform float uMix;
+varying vec2 vUv;
 
-  // Простой вывод в sRGB (примерно как у three при output = sRGB)
-  vec3 toSRGB(vec3 c) {
-    return pow(max(c, 0.0), vec3(1.0 / 2.2));
-  }
+uniform sampler2D t00;
+uniform sampler2D t10;
+uniform sampler2D t01;
+uniform sampler2D t11;
 
-  void main() {
-    vec4 a = texture2D(tA, vUv);
-    vec4 b = texture2D(tB, vUv);
+uniform float uBodyMix;
+uniform float uSecMix;
 
-    vec4 c = mix(a, b, clamp(uMix, 0.0, 1.0));
+// Простой вывод в sRGB (как у тебя)
+vec3 toSRGB(vec3 c) {
+  return pow(max(c, 0.0), vec3(1.0 / 2.2));
+}
 
-    gl_FragColor = vec4(toSRGB(c.rgb), c.a);
-  }
+void main() {
+  vec4 c00 = texture2D(t00, vUv);
+  vec4 c10 = texture2D(t10, vUv);
+  vec4 c01 = texture2D(t01, vUv);
+  vec4 c11 = texture2D(t11, vUv);
+
+  float b = clamp(uBodyMix, 0.0, 1.0);
+  float s = clamp(uSecMix, 0.0, 1.0);
+
+  // сначала микс по телу
+  vec4 semiSec = mix(c00, c10, b);
+  vec4 opaSec  = mix(c01, c11, b);
+
+  // потом микс по сечениям
+  vec4 outC = mix(semiSec, opaSec, s);
+
+  gl_FragColor = vec4(toSRGB(outC.rgb), outC.a);
+}
 `,
       depthTest: false,
       depthWrite: false,
@@ -318,55 +358,92 @@ function renderWithInsetBlend() {
 
   ensureBlendResources();
 
-  // 1) Pass A: как есть (обычно это “прозрачность на 70%”)
+  // --- helpers: сохранить/применить override ---
+  function saveStates(mats) {
+    const saved = [];
+    for (const m of mats) {
+      if (!m) continue;
+      saved.push({
+        m,
+        transparent: m.transparent,
+        opacity: m.opacity,
+        depthWrite: m.depthWrite,
+        depthTest: m.depthTest,
+      });
+    }
+    return saved;
+  }
+
+  function applyOpaque(mats) {
+    for (const m of mats) {
+      if (!m) continue;
+      m.transparent = false;
+      m.opacity = 1;
+      m.depthWrite = true;
+      m.depthTest = true;
+      m.needsUpdate = true;
+    }
+  }
+
+  function restoreStates(saved) {
+    for (const s of saved) {
+      const m = s.m;
+      m.transparent = s.transparent;
+      m.opacity = s.opacity;
+      m.depthWrite = s.depthWrite;
+      m.depthTest = s.depthTest;
+      m.needsUpdate = true;
+    }
+  }
+
+  // Сохраняем состояния обоих групп
+  const savedBody = saveStates(insetControlledMaterials);
+  const savedSec  = saveStates(insetSectionMaterials);
+
+  // 1) T00: body как есть + sec как есть (semi)
   renderer.setRenderTarget(rtA);
   renderer.clear(true, true, true);
   renderer.render(scene, camera);
 
-  // 2) Pass B: временно делаем контролируемые материалы полностью opaque
-  const saved = [];
-  for (const m of insetControlledMaterials) {
-    if (!m) continue;
-    saved.push({
-      m,
-      transparent: m.transparent,
-      opacity: m.opacity,
-      depthWrite: m.depthWrite,
-      depthTest: m.depthTest,
-    });
-
-    m.transparent = false;
-    m.opacity = 1;
-    m.depthWrite = true;
-    m.depthTest = true;
-    m.needsUpdate = true;
-  }
-
+  // 2) T10: body opaque + sec semi
+  applyOpaque(insetControlledMaterials);
   renderer.setRenderTarget(rtB);
   renderer.clear(true, true, true);
   renderer.render(scene, camera);
+  restoreStates(savedBody);
 
-  // 3) Возвращаем материалы обратно
-  for (const s of saved) {
-    const m = s.m;
-    m.transparent = s.transparent;
-    m.opacity = s.opacity;
-    m.depthWrite = s.depthWrite;
-    m.depthTest = s.depthTest;
-    m.needsUpdate = true;
-  }
+  // 3) T01: body semi + sec opaque
+  applyOpaque(insetSectionMaterials);
+  renderer.setRenderTarget(rtC);
+  renderer.clear(true, true, true);
+  renderer.render(scene, camera);
+  restoreStates(savedSec);
 
-  // 4) Финальный вывод: смешиваем 2 текстуры на экран
+  // 4) T11: body opaque + sec opaque
+  applyOpaque(insetControlledMaterials);
+  applyOpaque(insetSectionMaterials);
+  renderer.setRenderTarget(rtD);
+  renderer.clear(true, true, true);
+  renderer.render(scene, camera);
+
+  // Возвращаем всё как было
+  restoreStates(savedBody);
+  restoreStates(savedSec);
+
+  // 5) Финальный вывод (2 независимых микса)
   renderer.setRenderTarget(null);
 
-  postQuad.material.uniforms.tA.value = rtA.texture;
-  postQuad.material.uniforms.tB.value = rtB.texture;
-  postQuad.material.uniforms.uMix.value = insetBlendFactor;
+  postQuad.material.uniforms.t00.value = rtA.texture;
+  postQuad.material.uniforms.t10.value = rtB.texture;
+  postQuad.material.uniforms.t01.value = rtC.texture;
+  postQuad.material.uniforms.t11.value = rtD.texture;
+
+  postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
+  postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
 
   renderer.clear(true, true, true);
   renderer.render(postScene, postCam);
 }
-
 function setupLights() {
   const zenith = new THREE.DirectionalLight(0xf5f8ff, 0.0);
   zenith.position.set(0, 11, 2);
