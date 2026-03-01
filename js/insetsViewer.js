@@ -8,7 +8,9 @@ import {
   setInsetBlendState,
   setInsetSectionBlendState,
   setCadOverlay,
-  clearCadOverlay
+  clearCadOverlay,
+  setOutlineEnabled,
+  setOutlineStyle
 } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
@@ -41,6 +43,9 @@ function enterInsetMode() {
   document.body.classList.add("inset-mode");
 
   setInsetBlendEnabled(true);
+    // Контуры только во Врезках
+  setOutlineEnabled(true);
+  setOutlineStyle({ thicknessPx: 1.5, edgesAngle: 60 });
   setInsetBlendState(0, []); // ✅ пока модель не загружена — материалов ещё нет
   setInsetSectionBlendState(0.5, []); // пока не загрузили — материалов нет, но коэффициент фиксируем
 
@@ -55,6 +60,7 @@ function exitInsetMode() {
     setInsetBlendState(0, []);
   setInsetBlendEnabled(false);
     clearCadOverlay();
+    setOutlineEnabled(false);
 }
 // ✅ Собрать все материалы с нужным именем (например "3") внутри загруженной модели
 function collectMaterialsByName(root, name) {
