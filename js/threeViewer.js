@@ -64,34 +64,7 @@ outlineMat = new THREE.LineBasicMaterial({
   depthWrite: false
 });
 
-// Материал “оболочки” (силуэт) — backfaces
-hullMat = new THREE.ShaderMaterial({
-  uniforms: {
-    uThickness: { value: 0.001 }, // world units, обновим каждый кадр
-    uColor: { value: new THREE.Color(0xffffff) },
-    uOpacity: { value: 1.0 }
-  },
-  vertexShader: `
-    uniform float uThickness;
-    varying vec3 vNormal;
-    void main() {
-      vNormal = normalize(normalMatrix * normal);
-      vec3 displaced = position + normal * uThickness;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform vec3 uColor;
-    uniform float uOpacity;
-    void main() {
-      gl_FragColor = vec4(uColor, uOpacity);
-    }
-  `,
-  side: THREE.BackSide,
-  transparent: true,
-  depthTest: true,
-  depthWrite: false
-});
+
 
 // CAD overlay: отдельная сцена, рисуется вторым проходом поверх всего
 cadScene = new THREE.Scene();
@@ -127,16 +100,7 @@ renderer.setAnimationLoop(() => {
 
   updateCameraPosition();
     // обновляем толщину силуэта под текущий zoom (примерно px)
-  if (outlineEnabled && hullMat && renderer) {
-    const size = new THREE.Vector2();
-    renderer.getDrawingBufferSize(size);
 
-    // world-units на 1px на расстоянии state.radius
-    const fovRad = camera.fov * Math.PI / 180;
-    const worldPerPx = (2 * Math.tan(fovRad / 2) * state.radius) / Math.max(1, size.y);
-
-    hullMat.uniforms.uThickness.value = worldPerPx * outlineThicknessPx;
-  }
 
   if (insetBlendEnabled) {
     renderWithInsetBlend();  // ✅ всегда через композит, даже при 0 и 1
@@ -194,16 +158,6 @@ function rebuildOutlinesForModel(root) {
     const geom = obj.geometry;
     if (!geom) return;
 
-    // 1) Силуэт: оболочка (inverted hull)
-    const hull = new THREE.Mesh(geom, hullMat);
-    hull.matrixAutoUpdate = false;
-    hull.renderOrder = 1500;          // после основной геометрии
-    hull.onBeforeRender = () => {
-      // синхронизируем трансформы как у оригинального меша
-      hull.matrixWorld.copy(obj.matrixWorld);
-    };
-    outlineGroup.add(hull);
-    hullMeshes.push(hull);
 
     // 2) Рёбра: EdgesGeometry по углу
     const edgesGeom = new THREE.EdgesGeometry(geom, edgesAngleDeg);
@@ -292,14 +246,10 @@ export function setOutlineStyle({ thicknessPx, edgesAngle } = {}) {
 function clearOutlines() {
   if (!outlineGroup) return;
 
-  for (const m of hullMeshes) {
-    m.geometry?.dispose?.();
-  }
   for (const e of edgesMeshes) {
     e.geometry?.dispose?.();
   }
 
-  hullMeshes = [];
   edgesMeshes = [];
   outlineGroup.clear();
 }
