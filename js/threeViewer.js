@@ -535,6 +535,53 @@ function renderWithInsetBlend() {
   // Возвращаем всё как было
   restoreStates(savedBody);
   restoreStates(savedSec);
+    // 4.5) Рендерим рёбра в отдельный RT с глубиной сцены,
+  // чтобы НЕ было видимых "внутренних/задних" линий после композита.
+  if (rtEdges) {
+    // временно прячем всё, кроме outlineGroup
+    const prevVis = [];
+    for (const ch of scene.children) {
+      if (ch === outlineGroup) continue;
+      prevVis.push([ch, ch.visible]);
+      ch.visible = false;
+    }
+
+    // Важно: outlineGroup должен быть видим
+    const prevOutlineVis = outlineGroup?.visible;
+    if (outlineGroup) outlineGroup.visible = true;
+
+    renderer.setRenderTarget(rtEdges);
+    renderer.clear(true, true, true);
+
+    // В этом RT depthBuffer настоящий, рёбра будут корректно отсекаться.
+    // Но нам нужна глубина самой модели, иначе рёбра всегда будут "сверху".
+    // Поэтому рендерим модель в depth, а затем рёбра:
+    // 1) depth prepass: включаем colorWrite=false для материалов модели
+    const savedColorWrite = [];
+    currentModel?.traverse((obj) => {
+      if (!obj.isMesh) return;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const m of mats) {
+        if (!m) continue;
+        savedColorWrite.push([m, m.colorWrite]);
+        m.colorWrite = false;
+      }
+    });
+
+    renderer.render(scene, camera); // пишет только depth (цвет выключен)
+
+    // 2) возвращаем colorWrite
+    for (const [m, cw] of savedColorWrite) m.colorWrite = cw;
+
+    // 3) теперь рисуем рёбра уже с depthTest=true
+    renderer.render(outlineGroup, camera);
+
+    // вернуть видимость
+    for (const [ch, v] of prevVis) ch.visible = v;
+    if (outlineGroup) outlineGroup.visible = prevOutlineVis;
+
+    renderer.setRenderTarget(null);
+  }
 
   // 5) Финальный вывод (2 независимых микса)
   renderer.setRenderTarget(null);
@@ -543,6 +590,8 @@ function renderWithInsetBlend() {
   postQuad.material.uniforms.t10.value = rtB.texture;
   postQuad.material.uniforms.t01.value = rtC.texture;
   postQuad.material.uniforms.t11.value = rtD.texture;
+  postQuad.material.uniforms.tEdges.value = rtEdges ? rtEdges.texture : null;
+postQuad.material.uniforms.uEdgeAlpha.value = 1.0;
 
   postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
   postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
