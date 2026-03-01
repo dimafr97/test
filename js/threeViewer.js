@@ -11,6 +11,15 @@ let currentModel = null;
 // ===== CAD overlay (точки/линии для врезок) =====
 let cadGroup = null;
 let cadScene = null;
+// ===== Outline / Edges overlay (контуры для врезок) =====
+let outlineEnabled = false;
+let outlineGroup = null;       // общий контейнер линий/силуэта
+let outlineMat = null;         // материал для рёбер
+let hullMat = null;            // материал для силуэта (оболочка)
+let hullMeshes = [];           // список оболочек (по каждому mesh)
+let edgesMeshes = [];          // список edge-линий
+let outlineThicknessPx = 1.5;  // как CAD-линии (примерно)
+let edgesAngleDeg = 60;        // порог угла для рёбер (автомат)
 // ===== Inset blend (70..100) =====
 let insetBlendEnabled = false;
 let insetBlendFactor = 0;           // 0..1 (0 = только passA, 1 = только passB)
@@ -41,6 +50,48 @@ const state = {
 export function initThree(canvas) {
 scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050506);
+  // Контуры: рисуются в ОСНОВНОЙ сцене (чтобы попадали в inset-blend композит)
+outlineGroup = new THREE.Group();
+outlineGroup.name = "outline-overlay";
+scene.add(outlineGroup);
+
+// Линии рёбер (белые)
+outlineMat = new THREE.LineBasicMaterial({
+  color: 0xffffff,
+  transparent: true,
+  opacity: 1.0,
+  depthTest: true,   // важно: скрытые рёбра не рисуем
+  depthWrite: false
+});
+
+// Материал “оболочки” (силуэт) — backfaces
+hullMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uThickness: { value: 0.001 }, // world units, обновим каждый кадр
+    uColor: { value: new THREE.Color(0xffffff) },
+    uOpacity: { value: 1.0 }
+  },
+  vertexShader: `
+    uniform float uThickness;
+    varying vec3 vNormal;
+    void main() {
+      vNormal = normalize(normalMatrix * normal);
+      vec3 displaced = position + normal * uThickness;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor;
+    uniform float uOpacity;
+    void main() {
+      gl_FragColor = vec4(uColor, uOpacity);
+    }
+  `,
+  side: THREE.BackSide,
+  transparent: true,
+  depthTest: true,
+  depthWrite: false
+});
 
 // CAD overlay: отдельная сцена, рисуется вторым проходом поверх всего
 cadScene = new THREE.Scene();
@@ -75,6 +126,17 @@ renderer.setAnimationLoop(() => {
   state.rotY += (state.targetRotY - state.rotY) * 0.22;
 
   updateCameraPosition();
+    // обновляем толщину силуэта под текущий zoom (примерно px)
+  if (outlineEnabled && hullMat && renderer) {
+    const size = new THREE.Vector2();
+    renderer.getDrawingBufferSize(size);
+
+    // world-units на 1px на расстоянии state.radius
+    const fovRad = camera.fov * Math.PI / 180;
+    const worldPerPx = (2 * Math.tan(fovRad / 2) * state.radius) / Math.max(1, size.y);
+
+    hullMat.uniforms.uThickness.value = worldPerPx * outlineThicknessPx;
+  }
 
   if (insetBlendEnabled) {
     renderWithInsetBlend();  // ✅ всегда через композит, даже при 0 и 1
@@ -102,11 +164,58 @@ export function setModel(root) {
 
   currentModel = root;
   scene.add(currentModel);
+    // Контуры только если включены (обычно только во "Врезках")
+  if (outlineEnabled) {
+    rebuildOutlinesForModel(root);
+  } else {
+    clearOutlines();
+  }
 
   state.targetRotX = 0.10;
   state.targetRotY = 0.00;
 
   fitCameraToModel(root);
+}
+
+function rebuildOutlinesForModel(root) {
+  clearOutlines();
+  if (!outlineGroup || !root) return;
+
+  // Пропускаем “служебные” объекты (точки a,b,c,d и т.п.)
+  const pointNameRe = /^[a-z](\d+)?$/;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    const nm = String(obj.name || "").trim();
+
+    // пропускаем точки/хелперы
+    if (pointNameRe.test(nm)) return;
+
+    const geom = obj.geometry;
+    if (!geom) return;
+
+    // 1) Силуэт: оболочка (inverted hull)
+    const hull = new THREE.Mesh(geom, hullMat);
+    hull.matrixAutoUpdate = false;
+    hull.renderOrder = 1500;          // после основной геометрии
+    hull.onBeforeRender = () => {
+      // синхронизируем трансформы как у оригинального меша
+      hull.matrixWorld.copy(obj.matrixWorld);
+    };
+    outlineGroup.add(hull);
+    hullMeshes.push(hull);
+
+    // 2) Рёбра: EdgesGeometry по углу
+    const edgesGeom = new THREE.EdgesGeometry(geom, edgesAngleDeg);
+    const edges = new THREE.LineSegments(edgesGeom, outlineMat);
+    edges.matrixAutoUpdate = false;
+    edges.renderOrder = 1501;         // чуть выше оболочки
+    edges.onBeforeRender = () => {
+      edges.matrixWorld.copy(obj.matrixWorld);
+    };
+    outlineGroup.add(edges);
+    edgesMeshes.push(edges);
+  });
 }
 
 function fitCameraToModel(root) {
@@ -167,6 +276,34 @@ export function setInsetSectionBlendState(factor01, sectionMats) {
 // ===============================
 // CAD overlay API (для врезок)
 // ===============================
+
+export function setOutlineEnabled(enabled) {
+  outlineEnabled = !!enabled;
+  if (!outlineEnabled) {
+    clearOutlines();
+  }
+}
+
+export function setOutlineStyle({ thicknessPx, edgesAngle } = {}) {
+  if (typeof thicknessPx === "number") outlineThicknessPx = thicknessPx;
+  if (typeof edgesAngle === "number") edgesAngleDeg = edgesAngle;
+}
+
+function clearOutlines() {
+  if (!outlineGroup) return;
+
+  for (const m of hullMeshes) {
+    m.geometry?.dispose?.();
+  }
+  for (const e of edgesMeshes) {
+    e.geometry?.dispose?.();
+  }
+
+  hullMeshes = [];
+  edgesMeshes = [];
+  outlineGroup.clear();
+}
+
 export function clearCadOverlay() {
   if (!cadGroup) return;
 
