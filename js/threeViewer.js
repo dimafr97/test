@@ -32,6 +32,7 @@ let rtA = null;
 let rtB = null;
 let rtC = null;
 let rtD = null;
+let rtN = null; // normals + depth (для контуров)
 let postScene = null;
 let postCam = null;
 let postQuad = null;
@@ -54,6 +55,7 @@ scene.background = new THREE.Color(0x050506);
 outlineGroup = new THREE.Group();
 outlineGroup.name = "outline-overlay";
 scene.add(outlineGroup);
+  outlineGroup.visible = false; // ✅ больше не рисуем EdgesGeometry в сцене
 
 // Линии рёбер (белые)
 outlineMat = new THREE.LineBasicMaterial({
@@ -366,6 +368,23 @@ if (!rtD || rtD.width !== w || rtD.height !== h) {
   rtD?.dispose?.();
   rtD = new THREE.WebGLRenderTarget(w, h, params);
 }
+
+  // ===== Normals RT (для контуров) =====
+if (!rtN || rtN.width !== w || rtN.height !== h) {
+  rtN?.dispose?.();
+  rtN = new THREE.WebGLRenderTarget(w, h, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    format: THREE.RGBAFormat,
+    depthBuffer: true,
+    stencilBuffer: false,
+  });
+
+  // depthTexture нужен, чтобы в шейдере понимать "что ближе"
+  rtN.depthTexture = new THREE.DepthTexture(w, h);
+  rtN.depthTexture.type = THREE.UnsignedShortType;
+}
+rtN.samples = 4;
   // ✅ MSAA (работает в WebGL2, в Telegram чаще всего WebGL2 есть)
 rtA.samples = 4;
 rtB.samples = 4;
@@ -382,6 +401,12 @@ uniforms: {
   t10: { value: null }, // body opaque + sec semi
   t01: { value: null }, // body semi + sec opaque
   t11: { value: null }, // body opaque + sec opaque
+  tN: { value: null },          // normal texture
+tDepth: { value: null },      // depth texture (rtN.depthTexture)
+uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) }, // будет обновляться
+uOutlineOn: { value: 0.0 },   // 0/1
+uDepthK: { value: 1.0 },      // чувствительность по depth
+uNormK: { value: 1.0 },       // чувствительность по нормалям
   uBodyMix: { value: 0 },
   uSecMix: { value: 0.5 },
 },
@@ -401,6 +426,26 @@ uniform sampler2D t00;
 uniform sampler2D t10;
 uniform sampler2D t01;
 uniform sampler2D t11;
+uniform sampler2D tN;
+uniform sampler2D tDepth;
+uniform vec2 uTexel;
+uniform float uOutlineOn;
+uniform float uDepthK;
+uniform float uNormK;
+float edgeDepth(vec2 uv) {
+  float d = texture2D(tDepth, uv).r;
+  float dR = texture2D(tDepth, uv + vec2(uTexel.x, 0.0)).r;
+  float dU = texture2D(tDepth, uv + vec2(0.0, uTexel.y)).r;
+  return max(abs(d - dR), abs(d - dU));
+}
+
+float edgeNormal(vec2 uv) {
+  vec3 n  = texture2D(tN, uv).xyz * 2.0 - 1.0;
+  vec3 nR = texture2D(tN, uv + vec2(uTexel.x, 0.0)).xyz * 2.0 - 1.0;
+  vec3 nU = texture2D(tN, uv + vec2(0.0, uTexel.y)).xyz * 2.0 - 1.0;
+  float a = max(length(n - nR), length(n - nU));
+  return a;
+}
 
 uniform float uBodyMix;
 uniform float uSecMix;
@@ -425,8 +470,23 @@ void main() {
 
   // потом микс по сечениям
   vec4 outC = mix(semiSec, opaSec, s);
+  vec3 col = outC.rgb;
 
-  gl_FragColor = vec4(toSRGB(outC.rgb), outC.a);
+if (uOutlineOn > 0.5) {
+  float ed = edgeDepth(vUv) * uDepthK;
+  float en = edgeNormal(vUv) * uNormK;
+
+  // пороги подбираем мягко (без резких скачков)
+  float e = max(
+    smoothstep(0.002, 0.01, ed),
+    smoothstep(0.10, 0.35, en)
+  );
+
+  // белая линия
+  col = mix(col, vec3(1.0), e);
+}
+
+gl_FragColor = vec4(toSRGB(col), outC.a);
 }
 `,
       depthTest: false,
@@ -506,16 +566,26 @@ function renderWithInsetBlend() {
   renderer.render(scene, camera);
   restoreStates(savedSec);
 
-  // 4) T11: body opaque + sec opaque
-  applyOpaque(insetControlledMaterials);
-  applyOpaque(insetSectionMaterials);
-  renderer.setRenderTarget(rtD);
-  renderer.clear(true, true, true);
-  renderer.render(scene, camera);
+// 4) T11: body opaque + sec opaque
+applyOpaque(insetControlledMaterials);
+applyOpaque(insetSectionMaterials);
+renderer.setRenderTarget(rtD);
+renderer.clear(true, true, true);
+renderer.render(scene, camera);
 
-  // Возвращаем всё как было
-  restoreStates(savedBody);
-  restoreStates(savedSec);
+// ===== Normals + Depth pass (для контуров) =====
+const prevOverride = scene.overrideMaterial;
+scene.overrideMaterial = new THREE.MeshNormalMaterial();
+
+renderer.setRenderTarget(rtN);
+renderer.clear(true, true, true);
+renderer.render(scene, camera);
+
+scene.overrideMaterial = prevOverride;
+
+// Возвращаем всё как было
+restoreStates(savedBody);
+restoreStates(savedSec);
 
   // 5) Финальный вывод (2 независимых микса)
   renderer.setRenderTarget(null);
@@ -527,6 +597,11 @@ function renderWithInsetBlend() {
 
   postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
   postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
+  // ===== Передаём normals и depth в шейдер =====
+postQuad.material.uniforms.tN.value = rtN.texture;
+postQuad.material.uniforms.tDepth.value = rtN.depthTexture;
+postQuad.material.uniforms.uTexel.value.set(1 / rtN.width, 1 / rtN.height);
+postQuad.material.uniforms.uOutlineOn.value = outlineEnabled ? 1.0 : 0.0;
 
   renderer.clear(true, true, true);
   renderer.render(postScene, postCam);
