@@ -32,6 +32,7 @@ let rtA = null;
 let rtB = null;
 let rtC = null;
 let rtD = null;
+let rtEdges = null;
 let postScene = null;
 let postCam = null;
 let postQuad = null;
@@ -366,6 +367,17 @@ if (!rtD || rtD.width !== w || rtD.height !== h) {
   rtD?.dispose?.();
   rtD = new THREE.WebGLRenderTarget(w, h, params);
 }
+  if (!rtEdges || rtEdges.width !== w || rtEdges.height !== h) {
+  rtEdges?.dispose?.();
+  rtEdges = new THREE.WebGLRenderTarget(w, h, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    format: THREE.RGBAFormat,
+    depthBuffer: true,
+    stencilBuffer: false,
+  });
+}
+rtEdges.samples = 4;
   // ✅ MSAA (работает в WebGL2, в Telegram чаще всего WebGL2 есть)
 rtA.samples = 4;
 rtB.samples = 4;
@@ -378,12 +390,14 @@ rtD.samples = 4;
 
     const mat = new THREE.ShaderMaterial({
 uniforms: {
-  t00: { value: null }, // body semi + sec semi
-  t10: { value: null }, // body opaque + sec semi
-  t01: { value: null }, // body semi + sec opaque
-  t11: { value: null }, // body opaque + sec opaque
+  t00: { value: null },
+  t10: { value: null },
+  t01: { value: null },
+  t11: { value: null },
+  tEdges: { value: null },
   uBodyMix: { value: 0 },
   uSecMix: { value: 0.5 },
+  uEdgeAlpha: { value: 1.0 },
 },
       vertexShader: `
         varying vec2 vUv;
@@ -401,7 +415,8 @@ uniform sampler2D t00;
 uniform sampler2D t10;
 uniform sampler2D t01;
 uniform sampler2D t11;
-
+uniform sampler2D tEdges;
+uniform float uEdgeAlpha;
 uniform float uBodyMix;
 uniform float uSecMix;
 
@@ -424,9 +439,13 @@ void main() {
   vec4 opaSec  = mix(c01, c11, b);
 
   // потом микс по сечениям
-  vec4 outC = mix(semiSec, opaSec, s);
+vec4 outC = mix(semiSec, opaSec, s);
 
-  gl_FragColor = vec4(toSRGB(outC.rgb), outC.a);
+// edges mask поверх (в tEdges лежат белые линии на чёрном фоне)
+vec4 e = texture2D(tEdges, vUv);
+outC.rgb = mix(outC.rgb, vec3(1.0), e.r * uEdgeAlpha);
+
+gl_FragColor = vec4(toSRGB(outC.rgb), outC.a);
 }
 `,
       depthTest: false,
