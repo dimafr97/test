@@ -14,6 +14,7 @@ let cadScene = null;
 // ===== Outline / Edges overlay (контуры для врезок) =====
 let outlineEnabled = false;
 let outlineGroup = null;       // общий контейнер линий/силуэта
+let outlineScene = null;
 let outlineMat = null;         // материал для рёбер
 let hullMat = null;            // материал для силуэта (оболочка)
 let hullMeshes = [];           // список оболочек (по каждому mesh)
@@ -52,9 +53,10 @@ export function initThree(canvas) {
 scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050506);
   // Контуры: рисуются в ОСНОВНОЙ сцене (чтобы попадали в inset-blend композит)
+outlineScene = new THREE.Scene();
 outlineGroup = new THREE.Group();
 outlineGroup.name = "outline-overlay";
-scene.add(outlineGroup);
+outlineScene.add(outlineGroup);
 
 // Линии рёбер (белые)
 outlineMat = new THREE.LineBasicMaterial({
@@ -108,6 +110,9 @@ renderer.setAnimationLoop(() => {
   } else {
     renderer.render(scene, camera);
   }
+
+  // ✅ Рёбра: всегда после финального кадра, но ДО CAD
+renderEdgesOverlay();
 
 // ✅ CAD поверх финального кадра (НЕ очищаем экран повторно)
 if (cadScene && cadGroup && cadGroup.children.length) {
@@ -480,6 +485,65 @@ function renderWithInsetBlend() {
     return saved;
   }
 
+function renderEdgesOverlay() {
+  if (!renderer || !camera) return;
+  if (!outlineEnabled || !outlineScene || !outlineGroup) return;
+  if (!outlineGroup.children.length) return;
+  if (!currentModel) return;
+
+  // 1) Очистим depth, чтобы построить его заново под текущую модель
+  const prevAutoClear = renderer.autoClear;
+  renderer.autoClear = false;
+  renderer.clearDepth();
+
+  // 2) Depth-prepass модели: делаем colorWrite=false, но depthWrite=true
+  const saved = [];
+
+  currentModel.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const m of mats) {
+      if (!m) continue;
+
+      saved.push({
+        m,
+        colorWrite: m.colorWrite,
+        transparent: m.transparent,
+        opacity: m.opacity,
+        depthWrite: m.depthWrite,
+        depthTest: m.depthTest,
+      });
+
+      m.colorWrite = false;     // ✅ не трогаем цвет
+      m.transparent = false;    // ✅ делаем “как opaque” для depth
+      m.opacity = 1;
+      m.depthWrite = true;      // ✅ пишем depth
+      m.depthTest = true;
+      m.needsUpdate = true;
+    }
+  });
+
+  // рендерим только для depth (цвет не меняется)
+  renderer.render(scene, camera);
+
+  // 3) Восстанавливаем материалы
+  for (const s of saved) {
+    const m = s.m;
+    m.colorWrite = s.colorWrite;
+    m.transparent = s.transparent;
+    m.opacity = s.opacity;
+    m.depthWrite = s.depthWrite;
+    m.depthTest = s.depthTest;
+    m.needsUpdate = true;
+  }
+
+  // 4) Рисуем рёбра поверх финального кадра, но с depthTest по построенному depth
+  renderer.render(outlineScene, camera);
+
+  renderer.autoClear = prevAutoClear;
+}
+  
   function applyOpaque(mats) {
     for (const m of mats) {
       if (!m) continue;
