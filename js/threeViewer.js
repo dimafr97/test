@@ -234,8 +234,18 @@ export function setInsetSectionBlendState(factor01, sectionMats) {
 
 export function setOutlineEnabled(enabled) {
   outlineEnabled = !!enabled;
+
+  // ✅ показываем/скрываем слой контуров
+  if (outlineGroup) outlineGroup.visible = outlineEnabled;
+
   if (!outlineEnabled) {
     clearOutlines();
+    return;
+  }
+
+  // ✅ если модель уже стоит в сцене — сразу перестроим контуры
+  if (currentModel) {
+    rebuildOutlinesForModel(currentModel);
   }
 }
 
