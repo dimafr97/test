@@ -14,7 +14,6 @@ let cadScene = null;
 // ===== Outline / Edges overlay (контуры для врезок) =====
 let outlineEnabled = false;
 let outlineGroup = null;       // общий контейнер линий/силуэта
-let outlineScene = null;
 let outlineMat = null;         // материал для рёбер
 let hullMat = null;            // материал для силуэта (оболочка)
 let hullMeshes = [];           // список оболочек (по каждому mesh)
@@ -51,11 +50,10 @@ const state = {
 export function initThree(canvas) {
 scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050506);
-// Контуры: отдельная сцена (будем рисовать поверх кадра, но с правильной окклюзией)
-outlineScene = new THREE.Scene();
+  // Контуры: рисуются в ОСНОВНОЙ сцене (чтобы попадали в inset-blend композит)
 outlineGroup = new THREE.Group();
 outlineGroup.name = "outline-overlay";
-outlineScene.add(outlineGroup);
+scene.add(outlineGroup);
 
 // Линии рёбер (белые)
 outlineMat = new THREE.LineBasicMaterial({
@@ -109,9 +107,6 @@ renderer.setAnimationLoop(() => {
   } else {
     renderer.render(scene, camera);
   }
-
-  // ✅ Контуры (с правильной окклюзией при любой прозрачности)
-renderOutlinesOverlay();
 
 // ✅ CAD поверх финального кадра (НЕ очищаем экран повторно)
 if (cadScene && cadGroup && cadGroup.children.length) {
@@ -257,55 +252,6 @@ function clearOutlines() {
 
   edgesMeshes = [];
   outlineGroup.clear();
-}
-
-function renderOutlinesOverlay() {
-  if (!renderer || !camera) return;
-  if (!outlineEnabled) return;
-  if (!outlineScene || !outlineGroup || outlineGroup.children.length === 0) return;
-  if (!currentModel) return;
-
-  // 1) depth-prepass: заполняем depth как будто все материалы пишут глубину
-  //    (цвет НЕ трогаем)
-  const saved = [];
-  currentModel.traverse((obj) => {
-    if (!obj.isMesh) return;
-
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    for (const m of mats) {
-      if (!m) continue;
-
-      saved.push({
-        m,
-        depthWrite: m.depthWrite,
-        depthTest: m.depthTest,
-        colorWrite: m.colorWrite,
-      });
-
-      // ключевой момент: пишем глубину всегда, но цвет не пишем
-      m.colorWrite = false;
-      m.depthWrite = true;
-      m.depthTest = true;
-    }
-  });
-
-  const prevAutoClear = renderer.autoClear;
-  renderer.autoClear = false;
-
-  renderer.clearDepth();        // сбрасываем depth финального кадра/поста
-  renderer.render(scene, camera); // рисуем только depth (colorWrite=false)
-
-  // 2) восстановить материалы
-  for (const s of saved) {
-    s.m.depthWrite = s.depthWrite;
-    s.m.depthTest = s.depthTest;
-    s.m.colorWrite = s.colorWrite;
-  }
-
-  // 3) рисуем контуры с depthTest=true — теперь скрытые рёбра реально скрываются
-  renderer.render(outlineScene, camera);
-
-  renderer.autoClear = prevAutoClear;
 }
 
 export function clearCadOverlay() {
