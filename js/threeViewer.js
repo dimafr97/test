@@ -32,6 +32,7 @@ let rtA = null;
 let rtB = null;
 let rtC = null;
 let rtD = null;
+let rtEdges = null;
 let postScene = null;
 let postCam = null;
 let postQuad = null;
@@ -366,6 +367,11 @@ if (!rtD || rtD.width !== w || rtD.height !== h) {
   rtD?.dispose?.();
   rtD = new THREE.WebGLRenderTarget(w, h, params);
 }
+  if (!rtEdges || rtEdges.width !== w || rtEdges.height !== h) {
+  rtEdges?.dispose?.();
+  rtEdges = new THREE.WebGLRenderTarget(w, h, params);
+}
+rtEdges.samples = 4;
   // ✅ MSAA (работает в WebGL2, в Telegram чаще всего WebGL2 есть)
 rtA.samples = 4;
 rtB.samples = 4;
@@ -382,6 +388,7 @@ uniforms: {
   t10: { value: null }, // body opaque + sec semi
   t01: { value: null }, // body semi + sec opaque
   t11: { value: null }, // body opaque + sec opaque
+    tEdges: { value: null },
   uBodyMix: { value: 0 },
   uSecMix: { value: 0.5 },
 },
@@ -401,6 +408,7 @@ uniform sampler2D t00;
 uniform sampler2D t10;
 uniform sampler2D t01;
 uniform sampler2D t11;
+uniform sampler2D tEdges;
 
 uniform float uBodyMix;
 uniform float uSecMix;
@@ -426,7 +434,17 @@ void main() {
   // потом микс по сечениям
   vec4 outC = mix(semiSec, opaSec, s);
 
-  gl_FragColor = vec4(toSRGB(outC.rgb), outC.a);
+  vec4 edges = texture2D(tEdges, vUv);
+
+// edges уже белые линии на чёрном фоне
+vec3 finalColor = outC.rgb;
+
+// если пиксель edges не чёрный — рисуем белый
+if (edges.r > 0.1) {
+  finalColor = vec3(1.0);
+}
+
+gl_FragColor = vec4(toSRGB(finalColor), outC.a);
 }
 `,
       depthTest: false,
@@ -513,6 +531,23 @@ function renderWithInsetBlend() {
   renderer.clear(true, true, true);
   renderer.render(scene, camera);
 
+  // ===== EDGES PASS =====
+
+// 1) depth от opaque состояния (тело + сечения opaque)
+applyOpaque(insetControlledMaterials);
+applyOpaque(insetSectionMaterials);
+
+renderer.setRenderTarget(rtEdges);
+renderer.clear(true, true, true);
+renderer.render(scene, camera);
+
+// 2) возвращаем материалы
+restoreStates(savedBody);
+restoreStates(savedSec);
+
+// 3) рендерим только outline поверх depth
+renderer.render(outlineGroup, camera);
+
   // Возвращаем всё как было
   restoreStates(savedBody);
   restoreStates(savedSec);
@@ -524,6 +559,7 @@ function renderWithInsetBlend() {
   postQuad.material.uniforms.t10.value = rtB.texture;
   postQuad.material.uniforms.t01.value = rtC.texture;
   postQuad.material.uniforms.t11.value = rtD.texture;
+  postQuad.material.uniforms.tEdges.value = rtEdges.texture;
 
   postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
   postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
