@@ -14,7 +14,6 @@ let cadScene = null;
 // ===== Outline / Edges overlay (контуры для врезок) =====
 let outlineEnabled = false;
 let outlineGroup = null;       // общий контейнер линий/силуэта
-let outlineScene = null;
 let outlineMat = null;         // материал для рёбер
 let hullMat = null;            // материал для силуэта (оболочка)
 let hullMeshes = [];           // список оболочек (по каждому mesh)
@@ -33,7 +32,6 @@ let rtA = null;
 let rtB = null;
 let rtC = null;
 let rtD = null;
-let rtEdges = null;
 let postScene = null;
 let postCam = null;
 let postQuad = null;
@@ -53,10 +51,9 @@ export function initThree(canvas) {
 scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050506);
   // Контуры: рисуются в ОСНОВНОЙ сцене (чтобы попадали в inset-blend композит)
-outlineScene = new THREE.Scene();
 outlineGroup = new THREE.Group();
 outlineGroup.name = "outline-overlay";
-outlineScene.add(outlineGroup);
+scene.add(outlineGroup);
 
 // Линии рёбер (белые)
 outlineMat = new THREE.LineBasicMaterial({
@@ -110,9 +107,6 @@ renderer.setAnimationLoop(() => {
   } else {
     renderer.render(scene, camera);
   }
-
-  // ✅ Рёбра: всегда после финального кадра, но ДО CAD
-renderEdgesOverlay();
 
 // ✅ CAD поверх финального кадра (НЕ очищаем экран повторно)
 if (cadScene && cadGroup && cadGroup.children.length) {
@@ -372,17 +366,6 @@ if (!rtD || rtD.width !== w || rtD.height !== h) {
   rtD?.dispose?.();
   rtD = new THREE.WebGLRenderTarget(w, h, params);
 }
-  if (!rtEdges || rtEdges.width !== w || rtEdges.height !== h) {
-  rtEdges?.dispose?.();
-  rtEdges = new THREE.WebGLRenderTarget(w, h, {
-    minFilter: THREE.LinearFilter,
-    magFilter: THREE.LinearFilter,
-    format: THREE.RGBAFormat,
-    depthBuffer: true,
-    stencilBuffer: false,
-  });
-}
-rtEdges.samples = 4;
   // ✅ MSAA (работает в WebGL2, в Telegram чаще всего WebGL2 есть)
 rtA.samples = 4;
 rtB.samples = 4;
@@ -395,14 +378,12 @@ rtD.samples = 4;
 
     const mat = new THREE.ShaderMaterial({
 uniforms: {
-  t00: { value: null },
-  t10: { value: null },
-  t01: { value: null },
-  t11: { value: null },
-  tEdges: { value: null },
+  t00: { value: null }, // body semi + sec semi
+  t10: { value: null }, // body opaque + sec semi
+  t01: { value: null }, // body semi + sec opaque
+  t11: { value: null }, // body opaque + sec opaque
   uBodyMix: { value: 0 },
   uSecMix: { value: 0.5 },
-  uEdgeAlpha: { value: 1.0 },
 },
       vertexShader: `
         varying vec2 vUv;
@@ -420,8 +401,7 @@ uniform sampler2D t00;
 uniform sampler2D t10;
 uniform sampler2D t01;
 uniform sampler2D t11;
-uniform sampler2D tEdges;
-uniform float uEdgeAlpha;
+
 uniform float uBodyMix;
 uniform float uSecMix;
 
@@ -444,13 +424,9 @@ void main() {
   vec4 opaSec  = mix(c01, c11, b);
 
   // потом микс по сечениям
-vec4 outC = mix(semiSec, opaSec, s);
+  vec4 outC = mix(semiSec, opaSec, s);
 
-// edges mask поверх (в tEdges лежат белые линии на чёрном фоне)
-vec4 e = texture2D(tEdges, vUv);
-outC.rgb = mix(outC.rgb, vec3(1.0), e.r * uEdgeAlpha);
-
-gl_FragColor = vec4(toSRGB(outC.rgb), outC.a);
+  gl_FragColor = vec4(toSRGB(outC.rgb), outC.a);
 }
 `,
       depthTest: false,
@@ -485,65 +461,6 @@ function renderWithInsetBlend() {
     return saved;
   }
 
-function renderEdgesOverlay() {
-  if (!renderer || !camera) return;
-  if (!outlineEnabled || !outlineScene || !outlineGroup) return;
-  if (!outlineGroup.children.length) return;
-  if (!currentModel) return;
-
-  // 1) Очистим depth, чтобы построить его заново под текущую модель
-  const prevAutoClear = renderer.autoClear;
-  renderer.autoClear = false;
-  renderer.clearDepth();
-
-  // 2) Depth-prepass модели: делаем colorWrite=false, но depthWrite=true
-  const saved = [];
-
-  currentModel.traverse((obj) => {
-    if (!obj.isMesh) return;
-
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    for (const m of mats) {
-      if (!m) continue;
-
-      saved.push({
-        m,
-        colorWrite: m.colorWrite,
-        transparent: m.transparent,
-        opacity: m.opacity,
-        depthWrite: m.depthWrite,
-        depthTest: m.depthTest,
-      });
-
-      m.colorWrite = false;     // ✅ не трогаем цвет
-      m.transparent = false;    // ✅ делаем “как opaque” для depth
-      m.opacity = 1;
-      m.depthWrite = true;      // ✅ пишем depth
-      m.depthTest = true;
-      m.needsUpdate = true;
-    }
-  });
-
-  // рендерим только для depth (цвет не меняется)
-  renderer.render(scene, camera);
-
-  // 3) Восстанавливаем материалы
-  for (const s of saved) {
-    const m = s.m;
-    m.colorWrite = s.colorWrite;
-    m.transparent = s.transparent;
-    m.opacity = s.opacity;
-    m.depthWrite = s.depthWrite;
-    m.depthTest = s.depthTest;
-    m.needsUpdate = true;
-  }
-
-  // 4) Рисуем рёбра поверх финального кадра, но с depthTest по построенному depth
-  renderer.render(outlineScene, camera);
-
-  renderer.autoClear = prevAutoClear;
-}
-  
   function applyOpaque(mats) {
     for (const m of mats) {
       if (!m) continue;
@@ -599,53 +516,6 @@ function renderEdgesOverlay() {
   // Возвращаем всё как было
   restoreStates(savedBody);
   restoreStates(savedSec);
-    // 4.5) Рендерим рёбра в отдельный RT с глубиной сцены,
-  // чтобы НЕ было видимых "внутренних/задних" линий после композита.
-  if (rtEdges) {
-    // временно прячем всё, кроме outlineGroup
-    const prevVis = [];
-    for (const ch of scene.children) {
-      if (ch === outlineGroup) continue;
-      prevVis.push([ch, ch.visible]);
-      ch.visible = false;
-    }
-
-    // Важно: outlineGroup должен быть видим
-    const prevOutlineVis = outlineGroup?.visible;
-    if (outlineGroup) outlineGroup.visible = true;
-
-    renderer.setRenderTarget(rtEdges);
-    renderer.clear(true, true, true);
-
-    // В этом RT depthBuffer настоящий, рёбра будут корректно отсекаться.
-    // Но нам нужна глубина самой модели, иначе рёбра всегда будут "сверху".
-    // Поэтому рендерим модель в depth, а затем рёбра:
-    // 1) depth prepass: включаем colorWrite=false для материалов модели
-    const savedColorWrite = [];
-    currentModel?.traverse((obj) => {
-      if (!obj.isMesh) return;
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      for (const m of mats) {
-        if (!m) continue;
-        savedColorWrite.push([m, m.colorWrite]);
-        m.colorWrite = false;
-      }
-    });
-
-    renderer.render(scene, camera); // пишет только depth (цвет выключен)
-
-    // 2) возвращаем colorWrite
-    for (const [m, cw] of savedColorWrite) m.colorWrite = cw;
-
-    // 3) теперь рисуем рёбра уже с depthTest=true
-    renderer.render(outlineGroup, camera);
-
-    // вернуть видимость
-    for (const [ch, v] of prevVis) ch.visible = v;
-    if (outlineGroup) outlineGroup.visible = prevOutlineVis;
-
-    renderer.setRenderTarget(null);
-  }
 
   // 5) Финальный вывод (2 независимых микса)
   renderer.setRenderTarget(null);
@@ -654,8 +524,6 @@ function renderEdgesOverlay() {
   postQuad.material.uniforms.t10.value = rtB.texture;
   postQuad.material.uniforms.t01.value = rtC.texture;
   postQuad.material.uniforms.t11.value = rtD.texture;
-  postQuad.material.uniforms.tEdges.value = rtEdges ? rtEdges.texture : null;
-postQuad.material.uniforms.uEdgeAlpha.value = 1.0;
 
   postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
   postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
