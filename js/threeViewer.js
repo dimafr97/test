@@ -111,7 +111,7 @@ renderer.setAnimationLoop(() => {
   }
 
 // ✅ CAD поверх финального кадра (НЕ очищаем экран повторно)
-if (cadScene && cadGroup && cadGroup.children.length) {
+if (document.body.classList.contains("inset-mode") && cadScene && cadGroup && cadGroup.children.length) {
   const prevAutoClear = renderer.autoClear;
   renderer.autoClear = false;
 
