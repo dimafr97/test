@@ -88,7 +88,7 @@ function applyOpacityToControlled() {
     if (!m) continue;
 
     // ✅ рисуем обе стороны (чтобы изнутри тоже было видно)
-    m.side = THREE.DoubleSide;
+    m.side = THREE.FrontSide;
 
     const needTransparent = currentOpacity < 0.999;
 
