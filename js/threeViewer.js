@@ -130,12 +130,6 @@ export function setModel(root) {
 
   currentModel = root;
   scene.add(currentModel);
-    // Контуры только если включены (обычно только во "Врезках")
-  if (outlineEnabled) {
-    rebuildOutlinesForModel(root);
-  } else {
-    clearOutlines();
-  }
 
   state.targetRotX = 0.10;
   state.targetRotY = 0.00;
@@ -234,10 +228,7 @@ export function setInsetSectionBlendState(factor01, sectionMats) {
 // ===============================
 
 export function setOutlineEnabled(enabled) {
-  outlineEnabled = !!enabled;
-  if (!outlineEnabled) {
-    clearOutlines();
-  }
+  outlineEnabled = !!enabled; // влияет только на post-обводку (uOutlineOn)
 }
 
 export function setOutlineStyle({ thicknessPx, edgesAngle } = {}) {
