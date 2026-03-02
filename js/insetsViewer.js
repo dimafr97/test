@@ -17,6 +17,8 @@ import { INSETS, getInsetMeta } from "./insetsModels.js";
 
 let dom = null;
 let currentId = null;
+// ✅ защита от гонок при быстрых переключениях врезок
+let insetLoadSeq = 0;
 // ✅ Материалы, которыми управляет ползунок прозрачности
 let controlledMaterials = [];
 let sectionMaterials = [];
@@ -296,18 +298,24 @@ export function openById(id) {
     return;
   }
 
-  currentId = id;
-  enterInsetMode();
+currentId = id;
+enterInsetMode();
 
-  // показываем viewer
-  dom.galleryEl?.classList.add("hidden");
-  dom.viewerWrapperEl?.classList.add("visible");
+// ✅ новый токен загрузки (всё, что придёт со старым токеном — игнорим)
+const mySeq = ++insetLoadSeq;
 
-  // подпись
-  if (dom.modelLabelEl) dom.modelLabelEl.textContent = meta.name;
+// ✅ сразу чистим CAD от предыдущей врезки, чтобы не "мигало" старым
+clearCadOverlay();
 
-  // загрузка
-  showLoading(`Загрузка: ${meta.name}`);
+// ✅ показываем viewer
+dom.galleryEl?.classList.add("hidden");
+dom.viewerWrapperEl?.classList.add("visible");
+
+// ✅ подпись
+if (dom.modelLabelEl) dom.modelLabelEl.textContent = meta.name;
+
+// ✅ загрузка
+showLoading(`Загрузка: ${meta.name}`);
 
 loadModel(meta.sourceId || meta.id, {
   onProgress: (p) => setProgress(p),
@@ -315,6 +323,9 @@ loadModel(meta.sourceId || meta.id, {
 })
 
   .then(({ root }) => {
+      // ✅ если пока грузилось — ты уже переключился на другую врезку/вышел
+  if (mySeq !== insetLoadSeq) return;
+  if (!document.body.classList.contains("inset-mode")) return;
     // ✅ 1) сначала применяем цвета сечений (если они заданы в meta)
     applyInsetColors(root, meta);
 
@@ -356,11 +367,15 @@ setInsetSectionBlendState(0.5, sectionMaterials);
 
   })
 
-    .catch((err) => {
-      console.error(err);
-      hideLoading();
-      setStatus("Ошибка загрузки");
-    });
+.catch((err) => {
+  // ✅ если ошибка от старой загрузки — игнорим
+  if (mySeq !== insetLoadSeq) return;
+  if (!document.body.classList.contains("inset-mode")) return;
+
+  console.error(err);
+  hideLoading();
+  setStatus("Ошибка загрузки");
+});
 }
 
 function showLoading(text) {
