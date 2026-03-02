@@ -12,6 +12,13 @@ import { initVideo, setVideoList, activateVideo, deactivateVideo } from "./video
 let dom = null;
 let currentModelId = null;
 let activeView = "3d"; // "3d" | "scheme" | "video"
+// ✅ если открыты "Врезки" — архитектурный viewer должен молчать
+function isInsetModeActive() {
+  return document.body.classList.contains("inset-mode");
+}
+
+// ✅ защита от гонок: если быстро переключили модель/раздел — старый промис игнорируем
+let archLoadSeq = 0;
 
 export function initViewer(refs) {
   dom = { ...refs };
@@ -86,28 +93,34 @@ function handleResize() {
 function setupUiHandlers() {
   const { backBtn, prevBtn, nextBtn, tab3dBtn, tabSchemeBtn, tabVideoBtn } = dom;
 
-  backBtn.addEventListener("click", () => showGallery());
+backBtn.addEventListener("click", () => {
+  if (isInsetModeActive()) return; // ✅ во Врезках не трогаем арх-режим
+  showGallery();
+});
 
-  nextBtn.addEventListener("click", () => {
-    if (!currentModelId) {
-      openModelById(MODELS[0].id);
-      return;
-    }
-    let idx = getModelIndex(currentModelId);
-    idx = (idx + 1) % MODELS.length;
-    openModelById(MODELS[idx].id);
-  });
+nextBtn.addEventListener("click", () => {
+  if (isInsetModeActive()) return; // ✅ во Врезках не трогаем арх-режим
 
-  prevBtn.addEventListener("click", () => {
-    if (!currentModelId) {
-      openModelById(MODELS[0].id);
-      return;
-    }
-    let idx = getModelIndex(currentModelId);
-    idx = (idx - 1 + MODELS.length) % MODELS.length;
-    openModelById(MODELS[idx].id);
-  });
+  if (!currentModelId) {
+    openModelById(MODELS[0].id);
+    return;
+  }
+  let idx = getModelIndex(currentModelId);
+  idx = (idx + 1) % MODELS.length;
+  openModelById(MODELS[idx].id);
+});
 
+prevBtn.addEventListener("click", () => {
+  if (isInsetModeActive()) return; // ✅ во Врезках не трогаем арх-режим
+
+  if (!currentModelId) {
+    openModelById(MODELS[0].id);
+    return;
+  }
+  let idx = getModelIndex(currentModelId);
+  idx = (idx - 1 + MODELS.length) % MODELS.length;
+  openModelById(MODELS[idx].id);
+});
   tab3dBtn.addEventListener("click", () => setViewMode("3d"));
 
   tabSchemeBtn.addEventListener("click", () => {
@@ -153,6 +166,7 @@ function getCurrentModelMeta() {
 }
 
 function openModelById(modelId) {
+  if (isInsetModeActive()) return; // ✅ во Врезках не открываем арх-модели
   const meta = getModelMeta(modelId);
   if (!meta) return;
 
@@ -170,6 +184,9 @@ function openModelById(modelId) {
 }
 
 function startModelLoading(meta) {
+  if (isInsetModeActive()) return; // ✅ если уже в "Врезках" — не грузим арх
+
+  const mySeq = ++archLoadSeq; // ✅ номер этой загрузки
   showLoading("Загрузка…", 0);
   setStatus("Загрузка: " + meta.name);
 
@@ -183,17 +200,22 @@ function startModelLoading(meta) {
     },
     onStatus: (text) => setStatus(text)
   })
-    .then(({ root }) => {
-      threeSetModel(root);
-      hideLoading();
-      setViewMode("3d");
-    })
-    .catch((err) => {
-      console.error("Ошибка загрузки модели:", err);
-      hideLoading();
-      setStatus("Ошибка загрузки модели");
-      alert("Ошибка загрузки модели.");
-    });
+.then(({ root }) => {
+  if (mySeq !== archLoadSeq) return;     // ✅ устаревшая загрузка
+  if (isInsetModeActive()) return;       // ✅ уже в "Врезках"
+
+  threeSetModel(root);
+  hideLoading();
+  setViewMode("3d");
+})
+.catch((err) => {
+  if (mySeq !== archLoadSeq) return; // ✅ устаревшая загрузка
+  if (isInsetModeActive()) return;   // ✅ уже в "Врезках"
+
+  console.error("Ошибка загрузки модели:", err);
+  hideLoading();
+  setStatus("Ошибка загрузки модели");
+});
 }
 
 function configureViewTabsForModel(meta) {
