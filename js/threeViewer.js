@@ -452,6 +452,17 @@ uniform float uSecMix;
 vec3 toSRGB(vec3 c) {
   return pow(max(c, 0.0), vec3(1.0 / 2.2));
 }
+// маленькая функция: "сила контура" в точке uv
+float outlineAt(vec2 uv) {
+  float ed = edgeDepth(uv) * uDepthK;
+  float en = edgeNormal(uv) * uNormK;
+
+  // те же пороги, что у тебя
+  return max(
+    smoothstep(0.002, 0.01, ed),
+    smoothstep(0.10, 0.35, en)
+  );
+}
 
 void main() {
   vec4 c00 = texture2D(t00, vUv);
@@ -470,17 +481,7 @@ void main() {
   vec4 outC = mix(semiSec, opaSec, s);
   vec3 col = outC.rgb;
 
-// маленькая функция: "сила контура" в точке uv
-float outlineAt(vec2 uv) {
-  float ed = edgeDepth(uv) * uDepthK;
-  float en = edgeNormal(uv) * uNormK;
 
-  // те же пороги, что у тебя
-  return max(
-    smoothstep(0.002, 0.01, ed),
-    smoothstep(0.10, 0.35, en)
-  );
-}
 
 if (uOutlineOn > 0.5) {
   // базовая сила контура
