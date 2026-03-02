@@ -565,14 +565,16 @@ renderer.clear(true, true, true);
 renderer.render(scene, camera);
 
 // ===== Normals + Depth pass (для контуров) =====
-const prevOverride = scene.overrideMaterial;
-scene.overrideMaterial = new THREE.MeshNormalMaterial();
+if (outlineEnabled) {
+  const prevOverride = scene.overrideMaterial;
+  scene.overrideMaterial = new THREE.MeshNormalMaterial();
 
-renderer.setRenderTarget(rtN);
-renderer.clear(true, true, true);
-renderer.render(scene, camera);
+  renderer.setRenderTarget(rtN);
+  renderer.clear(true, true, true);
+  renderer.render(scene, camera);
 
-scene.overrideMaterial = prevOverride;
+  scene.overrideMaterial = prevOverride;
+}
 
 // Возвращаем всё как было
 restoreStates(savedBody);
@@ -589,10 +591,18 @@ restoreStates(savedSec);
   postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
   postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
   // ===== Передаём normals и depth в шейдер =====
-postQuad.material.uniforms.tN.value = rtN.texture;
-postQuad.material.uniforms.tDepth.value = rtN.depthTexture;
-postQuad.material.uniforms.uTexel.value.set(1 / rtN.width, 1 / rtN.height);
+// ===== Передаём normals/depth в шейдер только когда контуры включены =====
 postQuad.material.uniforms.uOutlineOn.value = outlineEnabled ? 1.0 : 0.0;
+
+if (outlineEnabled) {
+  postQuad.material.uniforms.tN.value = rtN.texture;
+  postQuad.material.uniforms.tDepth.value = rtN.depthTexture;
+  postQuad.material.uniforms.uTexel.value.set(1 / rtN.width, 1 / rtN.height);
+} else {
+  // чтобы шейдер случайно не читал мусор
+  postQuad.material.uniforms.tN.value = null;
+  postQuad.material.uniforms.tDepth.value = null;
+}
 
   renderer.clear(true, true, true);
   renderer.render(postScene, postCam);
