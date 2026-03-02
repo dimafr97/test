@@ -87,9 +87,6 @@ function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
     if (!m) continue;
 
-    // ✅ рисуем обе стороны (чтобы изнутри тоже было видно)
-    m.side = THREE.FrontSide;
-
     const needTransparent = currentOpacity < 0.999;
 
     // Важно: opacity работает только если transparent=true
@@ -134,9 +131,6 @@ if (!isSection && !hex) continue;
 
 // цвет — только если есть hex
 if (hex && m.color) m.color.set(hex);
-
-// DoubleSide — если нужен всем
-m.side = THREE.DoubleSide;
 
 // матовый вид
 if ("metalness" in m) m.metalness = 0;
