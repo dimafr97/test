@@ -573,6 +573,25 @@ renderer.render(scene, camera);
 
 // ===== Normals + Depth pass (для контуров) =====
 if (outlineEnabled) {
+
+  // ✅ временно прячем сечения, чтобы их НЕ было в normals-pass (и не было контура по ним)
+  const hiddenSections = [];
+  if (currentModel && Array.isArray(insetSectionMaterials) && insetSectionMaterials.length) {
+    const secSet = new Set(insetSectionMaterials);
+
+    currentModel.traverse((obj) => {
+      if (!obj.isMesh) return;
+
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const isSectionMesh = mats.some((m) => m && secSet.has(m));
+
+      if (isSectionMesh && obj.visible) {
+        hiddenSections.push(obj);
+        obj.visible = false;
+      }
+    });
+  }
+
   const prevOverride = scene.overrideMaterial;
   scene.overrideMaterial = new THREE.MeshNormalMaterial();
 
@@ -581,6 +600,9 @@ if (outlineEnabled) {
   renderer.render(scene, camera);
 
   scene.overrideMaterial = prevOverride;
+
+  // ✅ возвращаем видимость сечений обратно
+  for (const obj of hiddenSections) obj.visible = true;
 }
 
 // Возвращаем всё как было
