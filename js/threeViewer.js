@@ -33,6 +33,7 @@ let rtB = null;
 let rtC = null;
 let rtD = null;
 let rtN = null; // normals + depth (для контуров)
+let rtSamples = 4; // 4 / 2 / 0 — только для RenderTarget'ов inset-blend
 let postScene = null;
 let postCam = null;
 let postQuad = null;
@@ -211,6 +212,13 @@ export function setInsetBlendEnabled(enabled) {
   insetBlendEnabled = !!enabled;
 }
 
+export function setInsetRtSamples(samples) {
+  const s = Number(samples);
+  rtSamples = (s === 0 || s === 2 || s === 4) ? s : 4;
+
+  // чтобы изменения применились сразу — пересоздать RT под текущий размер
+  if (insetBlendEnabled) ensureBlendResources();
+}
 // Обновляем фактор смешивания и список материалов, которые должны стать opaque во 2-м проходе
 export function setInsetBlendState(factor01, controlledMats) {
   insetBlendFactor = THREE.MathUtils.clamp(Number(factor01) || 0, 0, 1);
@@ -375,12 +383,11 @@ if (!rtN || rtN.width !== w || rtN.height !== h) {
   rtN.depthTexture = new THREE.DepthTexture(w, h);
   rtN.depthTexture.type = THREE.UnsignedShortType;
 }
-rtN.samples = 4;
-  // ✅ MSAA (работает в WebGL2, в Telegram чаще всего WebGL2 есть)
-rtA.samples = 4;
-rtB.samples = 4;
-rtC.samples = 4;
-rtD.samples = 4;
+rtN.samples = rtSamples;
+rtA.samples = rtSamples;
+rtB.samples = rtSamples;
+rtC.samples = rtSamples;
+rtD.samples = rtSamples;
 
   if (!postScene) {
     postScene = new THREE.Scene();
