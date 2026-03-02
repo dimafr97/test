@@ -470,15 +470,29 @@ void main() {
   vec4 outC = mix(semiSec, opaSec, s);
   vec3 col = outC.rgb;
 
-if (uOutlineOn > 0.5) {
-  float ed = edgeDepth(vUv) * uDepthK;
-  float en = edgeNormal(vUv) * uNormK;
+// маленькая функция: "сила контура" в точке uv
+float outlineAt(vec2 uv) {
+  float ed = edgeDepth(uv) * uDepthK;
+  float en = edgeNormal(uv) * uNormK;
 
-  // пороги подбираем мягко (без резких скачков)
-  float e = max(
+  // те же пороги, что у тебя
+  return max(
     smoothstep(0.002, 0.01, ed),
     smoothstep(0.10, 0.35, en)
   );
+}
+
+if (uOutlineOn > 0.5) {
+  // базовая сила контура
+  float e0 = outlineAt(vUv);
+
+  // ✅ сглаживание "лесенок": усредняем по 5 точкам (крест)
+  float eR = outlineAt(vUv + vec2( uTexel.x, 0.0));
+  float eL = outlineAt(vUv + vec2(-uTexel.x, 0.0));
+  float eU = outlineAt(vUv + vec2(0.0,  uTexel.y));
+  float eD = outlineAt(vUv + vec2(0.0, -uTexel.y));
+
+  float e = (e0 + eR + eL + eU + eD) * 0.2;
 
   // белая линия
   col = mix(col, vec3(1.0), e);
@@ -502,6 +516,10 @@ function renderWithInsetBlend() {
   if (!renderer || !camera) return;
 
   ensureBlendResources();
+    const b = insetBlendFactor; // 0..1
+  const EPS = 0.001;
+  const bodyIsZero = b <= EPS;
+  const bodyIsOne  = b >= (1 - EPS);
 
   // --- helpers: сохранить/применить override ---
   function saveStates(mats) {
@@ -545,31 +563,39 @@ function renderWithInsetBlend() {
   const savedBody = saveStates(insetControlledMaterials);
   const savedSec  = saveStates(insetSectionMaterials);
 
-  // 1) T00: body как есть + sec как есть (semi)
-  renderer.setRenderTarget(rtA);
-  renderer.clear(true, true, true);
-  renderer.render(scene, camera);
+  // --- 1) T00 / T01 (semi body) ---
+  // Всегда нужны, когда bodyMix НЕ 1
+  if (!bodyIsOne) {
+    // T00: body semi + sec semi
+    renderer.setRenderTarget(rtA);
+    renderer.clear(true, true, true);
+    renderer.render(scene, camera);
 
-  // 2) T10: body opaque + sec semi
-  applyOpaque(insetControlledMaterials);
-  renderer.setRenderTarget(rtB);
-  renderer.clear(true, true, true);
-  renderer.render(scene, camera);
-  restoreStates(savedBody);
+    // T01: body semi + sec opaque
+    applyOpaque(insetSectionMaterials);
+    renderer.setRenderTarget(rtC);
+    renderer.clear(true, true, true);
+    renderer.render(scene, camera);
+    restoreStates(savedSec);
+  }
 
-  // 3) T01: body semi + sec opaque
-  applyOpaque(insetSectionMaterials);
-  renderer.setRenderTarget(rtC);
-  renderer.clear(true, true, true);
-  renderer.render(scene, camera);
-  restoreStates(savedSec);
+  // --- 2) T10 / T11 (opaque body) ---
+  // Нужны только когда bodyMix НЕ 0
+  if (!bodyIsZero) {
+    // T10: body opaque + sec semi
+    applyOpaque(insetControlledMaterials);
+    renderer.setRenderTarget(rtB);
+    renderer.clear(true, true, true);
+    renderer.render(scene, camera);
+    restoreStates(savedBody);
 
-// 4) T11: body opaque + sec opaque
-applyOpaque(insetControlledMaterials);
-applyOpaque(insetSectionMaterials);
-renderer.setRenderTarget(rtD);
-renderer.clear(true, true, true);
-renderer.render(scene, camera);
+    // T11: body opaque + sec opaque
+    applyOpaque(insetControlledMaterials);
+    applyOpaque(insetSectionMaterials);
+    renderer.setRenderTarget(rtD);
+    renderer.clear(true, true, true);
+    renderer.render(scene, camera);
+  }
 
 // ===== Normals + Depth pass (для контуров) =====
 if (outlineEnabled) {
@@ -590,13 +616,20 @@ restoreStates(savedSec);
   // 5) Финальный вывод (2 независимых микса)
   renderer.setRenderTarget(null);
 
-  postQuad.material.uniforms.t00.value = rtA.texture;
-  postQuad.material.uniforms.t10.value = rtB.texture;
-  postQuad.material.uniforms.t01.value = rtC.texture;
-  postQuad.material.uniforms.t11.value = rtD.texture;
+// Если bodyMix == 0 → t10 = t00, t11 = t01 (точно тот же результат, но без рендера B/D)
+// Если bodyMix == 1 → t00 = t10, t01 = t11
+const t00 = bodyIsOne  ? rtB.texture : rtA.texture;
+const t10 = bodyIsZero ? rtA.texture : rtB.texture;
+const t01 = bodyIsOne  ? rtD.texture : rtC.texture;
+const t11 = bodyIsZero ? rtC.texture : rtD.texture;
 
-  postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
-  postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
+postQuad.material.uniforms.t00.value = t00;
+postQuad.material.uniforms.t10.value = t10;
+postQuad.material.uniforms.t01.value = t01;
+postQuad.material.uniforms.t11.value = t11;
+
+postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
+postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
   // ===== Передаём normals и depth в шейдер =====
 // ===== Передаём normals/depth в шейдер только когда контуры включены =====
 postQuad.material.uniforms.uOutlineOn.value = outlineEnabled ? 1.0 : 0.0;
