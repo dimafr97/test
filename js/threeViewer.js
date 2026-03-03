@@ -34,11 +34,13 @@ let rtC = null;
 let rtD = null;
 let rtN = null; // normals + depth (для контуров)
 let rtSamples = 4; // 4 / 2 / 0 — только для RenderTarget'ов inset-blend
-let supportsPostOutline = true;
-let dummyTex = null;
 let postScene = null;
 let postCam = null;
 let postQuad = null;
+// ===== debug overlay (без devtools) =====
+let debugDiv = null;
+let debugOnce = false;
+let debugFrame = 0;
 
 const state = {
   radius: 4.5,
@@ -95,17 +97,49 @@ cadScene.add(cadGroup);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
-  // ---- capabilities (важно для Android) ----
-const isWebGL2 = renderer.capabilities.isWebGL2;
-const hasDepthTex = isWebGL2 || renderer.extensions.has("WEBGL_depth_texture");
 
-// если depth texture недоступен — пост-обводка работать стабильно не сможет
-supportsPostOutline = !!hasDepthTex;
+  // ===== DEBUG OVERLAY (без devtools) =====
+if (!debugDiv) {
+  debugDiv = document.createElement("div");
+  debugDiv.style.position = "fixed";
+  debugDiv.style.left = "0";
+  debugDiv.style.bottom = "0";
+  debugDiv.style.zIndex = "99999";
+  debugDiv.style.fontSize = "11px";
+  debugDiv.style.lineHeight = "1.2";
+  debugDiv.style.padding = "6px 8px";
+  debugDiv.style.background = "rgba(0,0,0,0.72)";
+  debugDiv.style.color = "#00ff88";
+  debugDiv.style.maxWidth = "100vw";
+  debugDiv.style.pointerEvents = "none";
+  debugDiv.style.whiteSpace = "pre";
+  document.body.appendChild(debugDiv);
+}
 
-// dummy 1x1, чтобы sampler2D никогда не был null (некоторые драйверы падают)
-dummyTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
-dummyTex.needsUpdate = true;
+// выводим возможности устройства 1 раз
+if (!debugOnce) {
+  debugOnce = true;
 
+  const gl = renderer.getContext();
+  const caps = renderer.capabilities;
+
+  const isWebGL2 = !!caps.isWebGL2;
+  const extDepth = !!renderer.extensions.has("WEBGL_depth_texture");
+
+  // MAX_SAMPLES есть только в WebGL2
+  let maxSamples = "n/a";
+  try {
+    maxSamples = isWebGL2 ? String(gl.getParameter(gl.MAX_SAMPLES)) : "WebGL1";
+  } catch (e) {}
+
+  debugDiv.textContent =
+    "DEBUG\n" +
+    "WebGL2: " + isWebGL2 + "\n" +
+    "DepthTexture ext: " + extDepth + "\n" +
+    "MAX_SAMPLES: " + maxSamples + "\n" +
+    "maxTextures: " + caps.maxTextures + "\n" +
+    "maxVTextures: " + caps.maxVertexTextures + "\n";
+}
   setupLights();
   initControls(canvas);
 
@@ -132,6 +166,21 @@ if (document.body.classList.contains("inset-mode") && cadScene && cadGroup && ca
   renderer.render(cadScene, camera);
 
   renderer.autoClear = prevAutoClear;
+}
+  // ===== DEBUG: GL errors + status (обновляем редко, чтобы не грузить) =====
+debugFrame++;
+if (debugDiv && (debugFrame % 30 === 0)) { // примерно 1 раз в ~0.5 сек при 60fps
+  const gl = renderer.getContext();
+
+  // getError может показывать причину "пропали контуры/вылет"
+  const err = gl.getError(); // 0 = OK
+  const errText = (err === 0) ? "OK" : String(err);
+
+  debugDiv.textContent =
+    debugDiv.textContent.split("\n").slice(0, 6).join("\n") + "\n" + // оставляем верх (capabilities)
+    "outlineEnabled: " + outlineEnabled + "\n" +
+    "insetBlendEnabled: " + insetBlendEnabled + "\n" +
+    "GL_ERROR: " + errText + "\n";
 }
 });
 }
@@ -428,11 +477,7 @@ uNormK: { value: 1.0 },       // чувствительность по норм�
         }
       `,
 fragmentShader: `
-#ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
-#else
-precision mediump float;
-#endif
 
 varying vec2 vUv;
 
@@ -588,7 +633,7 @@ renderer.clear(true, true, true);
 renderer.render(scene, camera);
 
 // ===== Normals + Depth pass (для контуров) =====
-if (outlineEnabled && supportsPostOutline) {
+if (outlineEnabled) {
 
   // ✅ временно прячем сечения, чтобы их НЕ было в normals-pass (и не было контура по ним)
   const hiddenSections = [];
@@ -637,18 +682,16 @@ restoreStates(savedSec);
   postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
   // ===== Передаём normals и depth в шейдер =====
 // ===== Передаём normals/depth в шейдер только когда контуры включены =====
-const outlineOn = outlineEnabled && supportsPostOutline;
-postQuad.material.uniforms.uOutlineOn.value = outlineOn ? 1.0 : 0.0;
+postQuad.material.uniforms.uOutlineOn.value = outlineEnabled ? 1.0 : 0.0;
 
-if (outlineOn) {
+if (outlineEnabled) {
   postQuad.material.uniforms.tN.value = rtN.texture;
   postQuad.material.uniforms.tDepth.value = rtN.depthTexture;
   postQuad.material.uniforms.uTexel.value.set(1 / rtN.width, 1 / rtN.height);
 } else {
-  // НИКОГДА не null — на части Android это может вызывать краши/невалидные программы
-  postQuad.material.uniforms.tN.value = dummyTex;
-  postQuad.material.uniforms.tDepth.value = dummyTex;
-  postQuad.material.uniforms.uTexel.value.set(1 / rtA.width, 1 / rtA.height);
+  // чтобы шейдер случайно не читал мусор
+  postQuad.material.uniforms.tN.value = null;
+  postQuad.material.uniforms.tDepth.value = null;
 }
 
   renderer.clear(true, true, true);
