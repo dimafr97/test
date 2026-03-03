@@ -34,6 +34,8 @@ let rtC = null;
 let rtD = null;
 let rtN = null; // normals + depth (для контуров)
 let rtSamples = 4; // 4 / 2 / 0 — только для RenderTarget'ов inset-blend
+let supportsPostOutline = true;
+let dummyTex = null;
 let postScene = null;
 let postCam = null;
 let postQuad = null;
@@ -93,6 +95,16 @@ cadScene.add(cadGroup);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
+  // ---- capabilities (важно для Android) ----
+const isWebGL2 = renderer.capabilities.isWebGL2;
+const hasDepthTex = isWebGL2 || renderer.extensions.has("WEBGL_depth_texture");
+
+// если depth texture недоступен — пост-обводка работать стабильно не сможет
+supportsPostOutline = !!hasDepthTex;
+
+// dummy 1x1, чтобы sampler2D никогда не был null (некоторые драйверы падают)
+dummyTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
+dummyTex.needsUpdate = true;
 
   setupLights();
   initControls(canvas);
@@ -416,7 +428,11 @@ uNormK: { value: 1.0 },       // чувствительность по норм�
         }
       `,
 fragmentShader: `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
+#else
+precision mediump float;
+#endif
 
 varying vec2 vUv;
 
@@ -572,7 +588,7 @@ renderer.clear(true, true, true);
 renderer.render(scene, camera);
 
 // ===== Normals + Depth pass (для контуров) =====
-if (outlineEnabled) {
+if (outlineEnabled && supportsPostOutline) {
 
   // ✅ временно прячем сечения, чтобы их НЕ было в normals-pass (и не было контура по ним)
   const hiddenSections = [];
@@ -621,16 +637,18 @@ restoreStates(savedSec);
   postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
   // ===== Передаём normals и depth в шейдер =====
 // ===== Передаём normals/depth в шейдер только когда контуры включены =====
-postQuad.material.uniforms.uOutlineOn.value = outlineEnabled ? 1.0 : 0.0;
+const outlineOn = outlineEnabled && supportsPostOutline;
+postQuad.material.uniforms.uOutlineOn.value = outlineOn ? 1.0 : 0.0;
 
-if (outlineEnabled) {
+if (outlineOn) {
   postQuad.material.uniforms.tN.value = rtN.texture;
   postQuad.material.uniforms.tDepth.value = rtN.depthTexture;
   postQuad.material.uniforms.uTexel.value.set(1 / rtN.width, 1 / rtN.height);
 } else {
-  // чтобы шейдер случайно не читал мусор
-  postQuad.material.uniforms.tN.value = null;
-  postQuad.material.uniforms.tDepth.value = null;
+  // НИКОГДА не null — на части Android это может вызывать краши/невалидные программы
+  postQuad.material.uniforms.tN.value = dummyTex;
+  postQuad.material.uniforms.tDepth.value = dummyTex;
+  postQuad.material.uniforms.uTexel.value.set(1 / rtA.width, 1 / rtA.height);
 }
 
   renderer.clear(true, true, true);
