@@ -37,10 +37,6 @@ let rtSamples = 4; // 4 / 2 / 0 — только для RenderTarget'ов inset-
 let postScene = null;
 let postCam = null;
 let postQuad = null;
-// ===== debug overlay (без devtools) =====
-let debugDiv = null;
-let debugOnce = false;
-let debugFrame = 0;
 
 const state = {
   radius: 4.5,
@@ -98,48 +94,6 @@ cadScene.add(cadGroup);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
 
-  // ===== DEBUG OVERLAY (без devtools) =====
-if (!debugDiv) {
-  debugDiv = document.createElement("div");
-  debugDiv.style.position = "fixed";
-  debugDiv.style.left = "0";
-  debugDiv.style.bottom = "0";
-  debugDiv.style.zIndex = "99999";
-  debugDiv.style.fontSize = "11px";
-  debugDiv.style.lineHeight = "1.2";
-  debugDiv.style.padding = "6px 8px";
-  debugDiv.style.background = "rgba(0,0,0,0.72)";
-  debugDiv.style.color = "#00ff88";
-  debugDiv.style.maxWidth = "100vw";
-  debugDiv.style.pointerEvents = "none";
-  debugDiv.style.whiteSpace = "pre";
-  document.body.appendChild(debugDiv);
-}
-
-// выводим возможности устройства 1 раз
-if (!debugOnce) {
-  debugOnce = true;
-
-  const gl = renderer.getContext();
-  const caps = renderer.capabilities;
-
-  const isWebGL2 = !!caps.isWebGL2;
-  const extDepth = !!renderer.extensions.has("WEBGL_depth_texture");
-
-  // MAX_SAMPLES есть только в WebGL2
-  let maxSamples = "n/a";
-  try {
-    maxSamples = isWebGL2 ? String(gl.getParameter(gl.MAX_SAMPLES)) : "WebGL1";
-  } catch (e) {}
-
-  debugDiv.textContent =
-    "DEBUG\n" +
-    "WebGL2: " + isWebGL2 + "\n" +
-    "DepthTexture ext: " + extDepth + "\n" +
-    "MAX_SAMPLES: " + maxSamples + "\n" +
-    "maxTextures: " + caps.maxTextures + "\n" +
-    "maxVTextures: " + caps.maxVertexTextures + "\n";
-}
   setupLights();
   initControls(canvas);
 
@@ -166,21 +120,6 @@ if (document.body.classList.contains("inset-mode") && cadScene && cadGroup && ca
   renderer.render(cadScene, camera);
 
   renderer.autoClear = prevAutoClear;
-}
-  // ===== DEBUG: GL errors + status (обновляем редко, чтобы не грузить) =====
-debugFrame++;
-if (debugDiv && (debugFrame % 30 === 0)) { // примерно 1 раз в ~0.5 сек при 60fps
-  const gl = renderer.getContext();
-
-  // getError может показывать причину "пропали контуры/вылет"
-  const err = gl.getError(); // 0 = OK
-  const errText = (err === 0) ? "OK" : String(err);
-
-  debugDiv.textContent =
-    debugDiv.textContent.split("\n").slice(0, 6).join("\n") + "\n" + // оставляем верх (capabilities)
-    "outlineEnabled: " + outlineEnabled + "\n" +
-    "insetBlendEnabled: " + insetBlendEnabled + "\n" +
-    "GL_ERROR: " + errText + "\n";
 }
 });
 }
@@ -444,11 +383,19 @@ if (!rtN || rtN.width !== w || rtN.height !== h) {
   rtN.depthTexture = new THREE.DepthTexture(w, h);
   rtN.depthTexture.type = THREE.UnsignedShortType;
 }
-rtN.samples = rtSamples;
-rtA.samples = rtSamples;
-rtB.samples = rtSamples;
-rtC.samples = rtSamples;
-rtD.samples = rtSamples;
+const isAndroid = /Android/i.test(navigator.userAgent);
+
+// На Android MSAA в render targets ломает depth и даёт 1282
+const samples = isAndroid ? 0 : rtSamples;
+
+rtA.samples = samples;
+rtB.samples = samples;
+rtC.samples = samples;
+rtD.samples = samples;
+
+if (rtN) {
+  rtN.samples = samples;
+}
 
   if (!postScene) {
     postScene = new THREE.Scene();
