@@ -11,6 +11,7 @@ let currentModel = null;
 // ===== CAD overlay (точки/линии для врезок) =====
 let cadGroup = null;
 let cadScene = null;
+let cadAlpha = 1;
 // ===== Outline / Edges overlay (контуры для врезок) =====
 let outlineEnabled = false;
 let outlineGroup = null;       // общий контейнер линий/силуэта
@@ -266,6 +267,20 @@ export function clearCadOverlay() {
   cadGroup.clear();
 }
 
+export function setCadAlpha(alpha) {
+  cadAlpha = Math.max(0, Math.min(1, alpha));
+
+  if (!cadGroup) return;
+
+  cadGroup.traverse((obj) => {
+    if (!obj.material) return;
+
+    obj.material.transparent = true;
+    obj.material.opacity = cadAlpha;
+    obj.material.needsUpdate = true;
+  });
+}
+
 export function setCadOverlay(spec) {
   clearCadOverlay();
   if (!cadGroup) return;
@@ -288,14 +303,15 @@ export function setCadOverlay(spec) {
   const pointsGeo = new THREE.BufferGeometry();
   pointsGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
 
-  const pointsMat = new THREE.PointsMaterial({
-    color: 0x2f6bff,
-    size: 8,
-    sizeAttenuation: false,
-    depthTest: false,
-    depthWrite: false
-  });
-
+const pointsMat = new THREE.PointsMaterial({
+  color: 0x2f6bff,
+  size: 8,
+  sizeAttenuation: false,
+  depthTest: false,
+  depthWrite: false,
+  transparent: true,
+  opacity: cadAlpha
+});
   const pointsObj = new THREE.Points(pointsGeo, pointsMat);
   pointsObj.renderOrder = 2000;
   cadGroup.add(pointsObj);
@@ -319,11 +335,13 @@ export function setCadOverlay(spec) {
         new THREE.BufferAttribute(new Float32Array(linePos), 3)
       );
 
-      const lineMat = new THREE.LineBasicMaterial({
-        color: 0x2f6bff,
-        depthTest: false,
-        depthWrite: false
-      });
+const lineMat = new THREE.LineBasicMaterial({
+  color: 0x2f6bff,
+  depthTest: false,
+  depthWrite: false,
+  transparent: true,
+  opacity: cadAlpha
+});
 
       const linesObj = new THREE.LineSegments(lineGeo, lineMat);
       linesObj.renderOrder = 1999;
