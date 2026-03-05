@@ -244,7 +244,7 @@ function setupUiHandlers() {
 dom.insetOpacitySlider?.addEventListener("input", () => {
   const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
   const uiOpacity = Math.max(0, Math.min(1, v / 100));   // 0..1
-  const cadAlpha = Math.min(1, Math.max(0, (1 - uiOpacity) / 0.1));
+  const cadAlpha = Math.min(1, Math.max(0, (1 - uiOpacity) / 0.3));
 setCadAlpha(cadAlpha);
 
   // 0..0.7 — реальная прозрачность как раньше
@@ -341,6 +341,9 @@ const cadSpec = meta?.cad?.fromNodes
   : meta.cad;
 
 setCadOverlay(cadSpec);
+    // применяем текущую прозрачность CAD при первом открытии
+const cadAlpha = Math.min(1, Math.max(0, (1 - currentOpacity) / 0.3));
+setCadAlpha(cadAlpha);
 
     // ✅ 3) находим материалы, которыми управляет ползунок (например "1")
     controlledMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
