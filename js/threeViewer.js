@@ -2,6 +2,9 @@
 // Камера и управление — 100% поведение 8.html.
 
 import * as THREE from "three";
+import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 
 let scene = null;
 let camera = null;
@@ -12,6 +15,7 @@ let currentModel = null;
 let cadGroup = null;
 let cadScene = null;
 let cadAlpha = 1;
+let cadLineMat = null; // LineMaterial для толстых CAD-линий
 // ===== Outline / Edges overlay (контуры для врезок) =====
 let outlineEnabled = false;
 let outlineGroup = null;       // общий контейнер линий/силуэта
@@ -93,6 +97,21 @@ cadScene.add(cadGroup);
 
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // CAD thick lines material (pixels)
+cadLineMat = new LineMaterial({
+  color: 0x2f6bff,
+  linewidth: 1.5,      // ✅ вот твои “в полтора раза толще”
+  transparent: true,
+  opacity: cadAlpha,
+  depthTest: false,
+  depthWrite: false
+});
+
+// resolution обязателен для LineMaterial
+cadLineMat.resolution.set(
+  renderer.domElement.width,
+  renderer.domElement.height
+);
   renderer.shadowMap.enabled = true;
 
   setupLights();
@@ -202,6 +221,12 @@ export function resize() {
   camera.updateProjectionMatrix();
 
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if (cadLineMat) {
+  cadLineMat.resolution.set(
+    renderer.domElement.width,
+    renderer.domElement.height
+  );
+}
     // чтобы RenderTarget пересоздались под новый размер
   if (insetBlendEnabled) {
     ensureBlendResources();
@@ -269,7 +294,7 @@ export function clearCadOverlay() {
 
 export function setCadAlpha(alpha) {
   cadAlpha = Math.max(0, Math.min(1, alpha));
-
+if (cadLineMat) cadLineMat.opacity = cadAlpha;
   if (!cadGroup) return;
 
   cadGroup.traverse((obj) => {
@@ -335,17 +360,28 @@ const pointsMat = new THREE.PointsMaterial({
         new THREE.BufferAttribute(new Float32Array(linePos), 3)
       );
 
-const lineMat = new THREE.LineBasicMaterial({
+// Thick CAD lines via LineSegments2 (stable linewidth on mobile)
+const segGeom = new LineSegmentsGeometry();
+segGeom.setPositions(new Float32Array(linePos)); // linePos уже собран выше
+
+// на всякий случай, если initThree ещё не успел создать материал
+const mat = cadLineMat || new LineMaterial({
   color: 0x2f6bff,
-  depthTest: false,
-  depthWrite: false,
+  linewidth: 1.5,
   transparent: true,
-  opacity: cadAlpha
+  opacity: cadAlpha,
+  depthTest: false,
+  depthWrite: false
 });
 
-      const linesObj = new THREE.LineSegments(lineGeo, lineMat);
-      linesObj.renderOrder = 1999;
-      cadGroup.add(linesObj);
+// если создали mat здесь (fallback) — нужен resolution
+if (!cadLineMat && renderer) {
+  mat.resolution.set(renderer.domElement.width, renderer.domElement.height);
+}
+
+const linesObj = new LineSegments2(segGeom, mat);
+linesObj.renderOrder = 1999;
+cadGroup.add(linesObj);
     }
   }
 }
