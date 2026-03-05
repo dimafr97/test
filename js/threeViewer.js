@@ -688,7 +688,8 @@ postQuad.material.uniforms.uOutlineOn.value = outlineEnabled ? 1.0 : 0.0;
 if (outlineEnabled) {
   postQuad.material.uniforms.tN.value = rtN.texture;
   postQuad.material.uniforms.tDepth.value = rtN.depthTexture;
-  postQuad.material.uniforms.uTexel.value.set(1 / rtN.width, 1 / rtN.height);
+  const k = Math.max(0.5, Number(outlineThicknessPx) || 1);
+postQuad.material.uniforms.uTexel.value.set(k / rtN.width, k / rtN.height);
 } else {
   // чтобы шейдер случайно не читал мусор
   postQuad.material.uniforms.tN.value = null;
