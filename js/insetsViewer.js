@@ -10,7 +10,8 @@ import {
   setCadOverlay,
   clearCadOverlay,
   setOutlineEnabled,
-  setOutlineStyle
+  setOutlineStyle,
+  setCadAlpha
 } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
@@ -243,6 +244,8 @@ function setupUiHandlers() {
 dom.insetOpacitySlider?.addEventListener("input", () => {
   const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
   const uiOpacity = Math.max(0, Math.min(1, v / 100));   // 0..1
+  const cadAlpha = Math.min(1, Math.max(0, (1 - uiOpacity) / 0.1));
+setCadAlpha(cadAlpha);
 
   // 0..0.7 — реальная прозрачность как раньше
   if (uiOpacity <= 0.7) {
