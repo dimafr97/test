@@ -99,7 +99,7 @@ cadScene.add(cadGroup);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   // CAD thick lines material (pixels)
 cadLineMat = new LineMaterial({
-  color: 0x2f6bff,
+  color: 0xc0d154,
   linewidth: 1.5,      
   transparent: true,
   opacity: cadAlpha,
@@ -329,7 +329,7 @@ export function setCadOverlay(spec) {
   pointsGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
 
 const pointsMat = new THREE.PointsMaterial({
-  color: 0x2f6bff,
+  color: 0xc0d154,
   size: 8,
   sizeAttenuation: false,
   depthTest: false,
@@ -366,7 +366,7 @@ segGeom.setPositions(new Float32Array(linePos)); // linePos уже собран 
 
 // на всякий случай, если initThree ещё не успел создать материал
 const mat = cadLineMat || new LineMaterial({
-  color: 0x2f6bff,
+  color: 0xc0d154,
   linewidth: 1.5,
   transparent: true,
   opacity: cadAlpha,
