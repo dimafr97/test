@@ -100,7 +100,7 @@ cadScene.add(cadGroup);
   // CAD thick lines material (pixels)
 cadLineMat = new LineMaterial({
   color: 0x2f6bff,
-  linewidth: 1.5,      // ✅ вот твои “в полтора раза толще”
+  linewidth: 2,      
   transparent: true,
   opacity: cadAlpha,
   depthTest: false,
@@ -367,7 +367,7 @@ segGeom.setPositions(new Float32Array(linePos)); // linePos уже собран 
 // на всякий случай, если initThree ещё не успел создать материал
 const mat = cadLineMat || new LineMaterial({
   color: 0x2f6bff,
-  linewidth: 1.5,
+  linewidth: 2,
   transparent: true,
   opacity: cadAlpha,
   depthTest: false,
