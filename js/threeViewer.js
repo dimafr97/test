@@ -732,12 +732,26 @@ export function setInsetNeutralLighting(enabled) {
 
     if (enabled) {
       obj.color.set(0xffffff);
+
+      if (obj.intensity === 1.85) obj.intensity = 1.45; // key
+      else if (obj.intensity === 0.35) obj.intensity = 0.30; // fill
+      else if (obj.intensity === 0.5) obj.intensity = 0.35; // rim
+      else if (obj.intensity === 0.1) obj.intensity = 0.08; // coldRim
     } else {
       // возвращаем оригинальные оттенки
-      if (obj.intensity === 1.85) obj.color.set(0xffc4a0);
-      if (obj.intensity === 0.35) obj.color.set(0xcad8ff);
-      if (obj.intensity === 0.5) obj.color.set(0xffffff);
-      if (obj.intensity === 0.1) obj.color.set(0xd8e4ff);
+      if (obj.intensity === 1.45) {
+        obj.color.set(0xffc4a0);
+        obj.intensity = 1.85;
+      } else if (obj.intensity === 0.30) {
+        obj.color.set(0xcad8ff);
+        obj.intensity = 0.35;
+      } else if (obj.intensity === 0.35) {
+        obj.color.set(0xffffff);
+        obj.intensity = 0.5;
+      } else if (obj.intensity === 0.08) {
+        obj.color.set(0xd8e4ff);
+        obj.intensity = 0.1;
+      }
     }
   });
 }
