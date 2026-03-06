@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import { loadModel } from "../js/models.js";
+import { INSETS, getInsetMeta } from "../js/insetsModels.js";
 import {
   initPreviewThree,
   setPreviewModel,
@@ -114,6 +116,7 @@ function applyInsetColors(root, meta) {
       m.needsUpdate = true;
     }
   });
+}
 
 
 function collectMaterialsByName(root, name) {
