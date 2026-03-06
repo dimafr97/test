@@ -11,7 +11,8 @@ import {
   clearCadOverlay,
   setOutlineEnabled,
   setOutlineStyle,
-  setCadAlpha
+  setCadAlpha,
+  setInsetNeutralLighting
 } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
@@ -46,6 +47,7 @@ function enterInsetMode() {
   document.body.classList.add("inset-mode");
 
   setInsetBlendEnabled(true);
+  setInsetNeutralLighting(true);
     // Контуры только во Врезках
   setOutlineEnabled(true);
   setOutlineStyle({ thicknessPx: 1.5, edgesAngle: 60 });
@@ -62,6 +64,7 @@ function exitInsetMode() {
   document.body.classList.remove("inset-mode");
     setInsetBlendState(0, []);
   setInsetBlendEnabled(false);
+  setInsetNeutralLighting(false);
     clearCadOverlay();
     setOutlineEnabled(false);
 }
