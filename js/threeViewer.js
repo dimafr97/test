@@ -724,6 +724,24 @@ function setupLights() {
   scene.add(new THREE.HemisphereLight(0xffffff, 0x0a0a0a, 0.07));
 }
 
+export function setInsetNeutralLighting(enabled) {
+  if (!scene) return;
+
+  scene.traverse((obj) => {
+    if (!obj.isLight) return;
+
+    if (enabled) {
+      obj.color.set(0xffffff);
+    } else {
+      // возвращаем оригинальные оттенки
+      if (obj.intensity === 1.85) obj.color.set(0xffc4a0);
+      if (obj.intensity === 0.35) obj.color.set(0xcad8ff);
+      if (obj.intensity === 0.5) obj.color.set(0xffffff);
+      if (obj.intensity === 0.1) obj.color.set(0xd8e4ff);
+    }
+  });
+}
+
 function initControls(canvas) {
   let dragging = false;
   let lastX = 0, lastY = 0;
