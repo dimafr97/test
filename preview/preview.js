@@ -114,6 +114,43 @@ function applyInsetColors(root, meta) {
     }
   });
 }
+
+function collectMaterialsByName(root, name) {
+  const out = [];
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    const mats = Array.isArray(obj.material)
+      ? obj.material
+      : [obj.material];
+
+    for (const m of mats) {
+      if (!m) continue;
+      if (m.name === name) out.push(m);
+    }
+  });
+
+  return Array.from(new Set(out));
+}
+
+function applyDefaultBodyOpacity(root, opacityMaterialName, opacity01) {
+  const mats = collectMaterialsByName(root, opacityMaterialName);
+
+  for (const m of mats) {
+    if (!m) continue;
+
+    m.side = THREE.DoubleSide;
+
+    const needTransparent = opacity01 < 0.999;
+
+    m.transparent = needTransparent;
+    m.opacity = opacity01;
+    m.depthWrite = !needTransparent;
+
+    m.needsUpdate = true;
+  }
+}
 // загрузка модели
 async function loadSelected() {
   if (!currentModelId) return;
@@ -144,7 +181,11 @@ if (!meta) {
     });
 applyInsetColors(root, meta);
 hideInsetPointNodes(root);
-    setPreviewModel(three, root);
+
+// прозрачность тела 0.5
+applyDefaultBodyOpacity(root, meta.opacityMaterialName, 0.5);
+
+setPreviewModel(three, root);
 
     loaded = true;
     elDownloadBtn.disabled = false;
