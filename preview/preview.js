@@ -7,10 +7,7 @@ import {
   resizePreview,
   renderPNG,
   rotatePreviewYaw,
-  rotatePreviewPitch,
-  renderPreview,
-  setPreviewCadOverlay,
-  clearPreviewCadOverlay
+  rotatePreviewPitch
 } from "./threePreview.js";
 
 const elWrap = document.getElementById("wrap");
@@ -117,75 +114,6 @@ function applyInsetColors(root, meta) {
     }
   });
 }
-
-
-function collectMaterialsByName(root, name) {
-  const out = [];
-  if (!root || !name) return out;
-
-  root.traverse((obj) => {
-    if (!obj.isMesh) return;
-    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-    for (const m of mats) {
-      if (!m) continue;
-      if (m.name === name) out.push(m);
-    }
-  });
-
-  return Array.from(new Set(out));
-}
-
-// Применить дефолтную прозрачность телу (материалу meta.opacityMaterialName)
-function applyDefaultBodyOpacity(root, opacityMaterialName, opacity01) {
-  const mats = collectMaterialsByName(root, opacityMaterialName);
-  for (const m of mats) {
-    if (!m) continue;
-
-    m.side = THREE.DoubleSide;
-
-    const needTransparent = opacity01 < 0.999;
-    m.transparent = needTransparent;
-    m.opacity = opacity01;
-
-    // чтобы корректно видеть "внутри" при прозрачности
-    m.depthWrite = !needTransparent;
-
-    m.needsUpdate = true;
-  }
-}
-
-// CAD spec из нод a,b,c... (как в insetsViewer.js)
-function buildCadSpecFromModel(root, cadMeta) {
-  if (!root || !cadMeta || !cadMeta.fromNodes) return null;
-
-  const pointNameRe = /^[a-z](\d+)?$/;
-
-  const points = [];
-  const pointMap = new Map(); // name -> {id,x,y,z}
-
-  root.traverse((obj) => {
-    const name = String(obj.name || "").trim();
-    if (!pointNameRe.test(name)) return;
-
-    const p = new THREE.Vector3();
-    obj.getWorldPosition(p);
-
-    const pt = { id: name, x: p.x, y: p.y, z: p.z };
-    pointMap.set(name, pt);
-    points.push(pt);
-
-    // скрываем реальные "меши-точки" из glTF
-    obj.visible = false;
-  });
-
-  points.sort((p1, p2) => p1.id.localeCompare(p2.id, "en"));
-
-  const lines = Array.isArray(cadMeta.lines) ? cadMeta.lines : [];
-  const filteredLines = lines.filter(([a, b]) => pointMap.has(String(a)) && pointMap.has(String(b)));
-
-  return { points, lines: filteredLines };
-}
-}
 // загрузка модели
 async function loadSelected() {
   if (!currentModelId) return;
@@ -216,23 +144,7 @@ if (!meta) {
     });
 applyInsetColors(root, meta);
 hideInsetPointNodes(root);
-
-// ✅ дефолтная прозрачность тела = 0.5 (и сечения/ CAD видно)
-applyDefaultBodyOpacity(root, meta.opacityMaterialName, 0.5);
-
-setPreviewModel(three, root);
-
-// ✅ CAD overlay (линии + точки)
-clearPreviewCadOverlay(three);
-const cadSpec = meta?.cad?.fromNodes
-  ? buildCadSpecFromModel(root, meta.cad)
-  : meta.cad;
-
-setPreviewCadOverlay(three, cadSpec, { opacity: 1.0, color: 0xffffff });
-
-// один кадр после CAD
-renderPreview(three);
-
+    setPreviewModel(three, root);
 
     loaded = true;
     elDownloadBtn.disabled = false;
