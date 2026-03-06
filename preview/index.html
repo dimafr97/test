@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Preview Generator</title>
+
+  <style>
+    :root { color-scheme: dark; }
+
+    body {
+      margin: 0;
+      background: #0b0b0e;
+      color: #eaeaea;
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      display: grid;
+      place-items: start center;
+      padding: 14px;
+      gap: 12px;
+    }
+
+    .panel {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      width: min(900px, 100%);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    select, button {
+      height: 34px;
+      padding: 0 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(0,0,0,0.45);
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .status {
+      opacity: 0.8;
+      font-size: 13px;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    /* Холст */
+    #wrap {
+      width: 512px;
+      height: 512px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.10);
+      background:
+        linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%) 0 0 / 24px 24px,
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.06) 75%) 0 0 / 24px 24px,
+        linear-gradient(45deg, transparent 25%, rgba(255,255,255,0.03) 25%) 12px 12px / 24px 24px,
+        linear-gradient(45deg, rgba(255,255,255,0.03) 75%, transparent 75%) 12px 12px / 24px 24px;
+      /* Это просто “шахматка”, чтобы видеть прозрачность */
+    }
+
+    canvas { display: block; width: 100%; height: 100%; }
+    #cam-up,
+#cam-down,
+#cam-left,
+#cam-right {
+  width: 34px;
+  padding: 0;
+  font-size: 16px;
+}
+
+  </style>
+
+  <!-- тот же importmap, что у тебя в основном index.html -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.153.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.153.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+<body>
+  <div class="panel">
+    <select id="modelSelect"></select>
+
+    <select id="sizeSelect" title="Размер PNG">
+      <option value="256">256×256</option>
+      <option value="512" selected>512×512</option>
+      <option value="1024">1024×1024</option>
+    </select>
+
+    <button id="loadBtn">Загрузить</button>
+    <button id="downloadBtn" disabled>Скачать PNG</button>
+      <!-- 🔽 КНОПКИ КАМЕРЫ -->
+  <button id="cam-up">▲</button>
+  <button id="cam-left">◀</button>
+  <button id="cam-right">▶</button>
+  <button id="cam-down">▼</button>
+
+    <div class="status" id="status">Готов</div>
+  </div>
+
+  <div id="wrap"></div>
+
+  <script type="module" src="./preview.js"></script>
+</body>
+</html>
