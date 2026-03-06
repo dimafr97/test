@@ -727,30 +727,43 @@ function setupLights() {
 export function setInsetNeutralLighting(enabled) {
   if (!scene) return;
 
+  const k = 0.7; // общий коэффициент яркости для врезок
+
   scene.traverse((obj) => {
     if (!obj.isLight) return;
 
     if (enabled) {
       obj.color.set(0xffffff);
 
-      if (obj.intensity === 1.85) obj.intensity = 1.45; // key
-      else if (obj.intensity === 0.35) obj.intensity = 0.30; // fill
-      else if (obj.intensity === 0.5) obj.intensity = 0.35; // rim
-      else if (obj.intensity === 0.1) obj.intensity = 0.08; // coldRim
+      if (obj.intensity === 1.85) obj.intensity = 1.85 * k; // key
+      else if (obj.intensity === 0.35) obj.intensity = 0.35 * k; // fill
+      else if (obj.intensity === 0.5) obj.intensity = 0.5 * k; // rim
+      else if (obj.intensity === 0.1) obj.intensity = 0.1 * k; // coldRim
+      else if (obj.intensity === 0.04) obj.intensity = 0.04 * k; // ambient
+      else if (obj.intensity === 0.07) obj.intensity = 0.07 * k; // hemisphere
     } else {
-      // возвращаем оригинальные оттенки
-      if (obj.intensity === 1.45) {
+      // возвращаем исходные значения
+      if (obj.intensity === 1.85 * k) {
         obj.color.set(0xffc4a0);
         obj.intensity = 1.85;
-      } else if (obj.intensity === 0.30) {
+      }
+      else if (obj.intensity === 0.35 * k) {
         obj.color.set(0xcad8ff);
         obj.intensity = 0.35;
-      } else if (obj.intensity === 0.35) {
+      }
+      else if (obj.intensity === 0.5 * k) {
         obj.color.set(0xffffff);
         obj.intensity = 0.5;
-      } else if (obj.intensity === 0.08) {
+      }
+      else if (obj.intensity === 0.1 * k) {
         obj.color.set(0xd8e4ff);
         obj.intensity = 0.1;
+      }
+      else if (obj.intensity === 0.04 * k) {
+        obj.intensity = 0.04;
+      }
+      else if (obj.intensity === 0.07 * k) {
+        obj.intensity = 0.07;
       }
     }
   });
