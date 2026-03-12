@@ -727,7 +727,7 @@ function setupLights() {
 export function setInsetNeutralLighting(enabled) {
   if (!scene) return;
 
-  const k = 0.7; // общий коэффициент яркости для врезок
+  const k = 0.5; // общий коэффициент яркости для врезок
 
   scene.traverse((obj) => {
     if (!obj.isLight) return;
