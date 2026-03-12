@@ -42,7 +42,7 @@ cad: {
   desc: "Композиция пересекающихся примитивов",
 
   // путь в защищённом API (после ?path=)
-  sourcePath: "models/2.2.gltf",
+  sourcePath: "models/2.3.gltf",
 
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
