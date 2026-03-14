@@ -9,6 +9,7 @@ const RAW_INSETS = [
   id: "inset_1",
   name: "Врезка 1",
   desc: "Композиция пересекающихся примитивов",
+  preview: "textures/1/preview.png",
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/1.1.gltf",
@@ -40,6 +41,7 @@ cad: {
   id: "inset_2",
   name: "Врезка 2",
   desc: "Композиция пересекающихся примитивов",
+    preview: "textures/2/preview.png",
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/2.3.gltf",
@@ -71,6 +73,7 @@ cad: {
   id: "inset_3",
   name: "Врезка 3",
   desc: "Композиция пересекающихся примитивов",
+      preview: "textures/3/preview.png",
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/3.gltf",
