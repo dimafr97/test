@@ -104,7 +104,7 @@ cad: {
   id: "inset_4",
   name: "Врезка 4",
   desc: "Композиция пересекающихся примитивов",
-      preview: "textures/3/preview.png",
+      preview: "textures/4/preview.png",
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/4.gltf",
