@@ -99,6 +99,36 @@ cad: {
   ]
 }
 },
+  
+    {
+  id: "inset_4",
+  name: "Врезка 4",
+  desc: "Композиция пересекающихся примитивов",
+      preview: "textures/3/preview.png",
+
+  // путь в защищённом API (после ?path=)
+  sourcePath: "models/4.gltf",
+
+  // материал тела (управляется ползунком)
+  opacityMaterialName: "1",
+
+  // материалы-сечения
+  sectionMaterialNames: ["2", "3"],
+
+  // цвета сечений
+  materialColors: {
+    "2": "#d929c1", // круг
+    "3": "#1c58e5" // эллипс
+  },
+
+  // ===== CAD-обвязка =====
+cad: {
+  fromNodes: true,
+  lines: [
+    ["a", "b"]
+  ]
+}
+},
 
 
   // (тестовый мольберт оставим как есть: он уже есть в MODELS)
