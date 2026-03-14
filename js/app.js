@@ -16,13 +16,14 @@ const MAIN_MENU = [
     id: "section_arch",
     name: "Архитектурные детали",
     desc: "3D + Построение + Видео",
-    // можно без preview — будет буква
+    preview: "textures/doric/preview.png",
     thumbLetter: "А"
   },
   {
     id: "section_insets",
     name: "Врезки",
     desc: "3D врезок (пока тест)",
+    preview: "textures/3/preview.png",
     thumbLetter: "В"
   }
 ];
