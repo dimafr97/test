@@ -39,14 +39,26 @@ export function renderGallery(containerEl, items, { onSelect }) {
     const thumb = document.createElement("div");
     thumb.className = "model-thumb";
 
-    if (m.preview) {
-      const img = document.createElement("img");
-      img.src = m.preview;
-      img.alt = m.name || "";
-      img.loading = "lazy";
-      img.decoding = "async";
-      thumb.appendChild(img);
-    } else {
+if (m.preview) {
+  const img = document.createElement("img");
+
+  // Если preview уже абсолютный URL — используем как есть.
+  // Если это относительный путь вроде "textures/1/preview.png",
+  // прогоняем через тот же защищённый API-формат.
+  const isAbsolute =
+    /^https?:\/\//i.test(m.preview) ||
+    m.preview.startsWith("/") ||
+    m.preview.startsWith("data:");
+
+  img.src = isAbsolute
+    ? m.preview
+    : `https://api.apparchi.ru/?path=${encodeURIComponent(m.preview)}`;
+
+  img.alt = m.name || "";
+  img.loading = "lazy";
+  img.decoding = "async";
+  thumb.appendChild(img);
+} else {
       thumb.textContent = m.thumbLetter || (m.name ? m.name.charAt(0) : "?");
     }
 
