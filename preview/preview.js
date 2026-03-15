@@ -239,7 +239,7 @@ async function loadSelected() {
     const cadSpec = meta?.cad?.fromNodes
       ? buildCadSpecFromModel(root, meta.cad)
       : meta.cad;
-    setPreviewCadOverlay(three, cadSpec, { opacity: 1.0, color: 0xffffff });
+    setPreviewCadOverlay(three, cadSpec, { opacity: 1.0 });
 
     renderPreview(three);
 
