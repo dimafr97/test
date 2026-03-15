@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-const CAD_COLOR = 0xc0d154;
+const CAD_COLOR = 0xdf1a84;
 
 // Камера/свет как в основном viewer, но без фона.
 const state = {
@@ -41,8 +41,8 @@ export function initPreviewThree(container, size) {
 
   return {
     scene,
-    cadScene,
-    cadGroup,
+    Scene,
+    Group,
     camera,
     renderer,
     currentModel: null,
