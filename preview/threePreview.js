@@ -39,26 +39,26 @@ export function initPreviewThree(container, size) {
   setupLights(scene);
   updateCameraPosition(camera);
 
-  return {
-    scene,
-    Scene,
-    Group,
-    camera,
-    renderer,
-    currentModel: null,
-    size,
+return {
+  scene,
+  cadScene,
+  cadGroup,
+  camera,
+  renderer,
+  currentModel: null,
+  size,
 
-    sectionMaterials: [],
-    sectionBlend: 0.5,
-    outlineEnabled: true,
+  sectionMaterials: [],
+  sectionBlend: 0.5,
+  outlineEnabled: true,
 
-    rtBase: null,
-    rtSec: null,
-    rtN: null,
-    postScene: null,
-    postCam: null,
-    postQuad: null
-  };
+  rtBase: null,
+  rtSec: null,
+  rtN: null,
+  postScene: null,
+  postCam: null,
+  postQuad: null
+};
 }
 
 export function resizePreview(three, container, size) {
