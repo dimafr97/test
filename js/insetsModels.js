@@ -169,7 +169,7 @@ cad: {
   preview: "textures/6/preview.png",
 
   // путь в защищённом API (после ?path=)
-  sourcePath: "models/6.gltf",
+  sourcePath: "models/6.1.gltf",
 
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
