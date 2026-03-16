@@ -197,19 +197,38 @@ cad: {
 }
 },
 
-
-  // (тестовый мольберт оставим как есть: он уже есть в MODELS)
+  
   {
-    id: "inset_molbert",
-    sourceId: "molbert",
-    name: "Мольберт (врезка)",
-    desc: "Тестовый объект врезок",
+  id: "inset_7",
+  name: "Горизонтальный цилиндр и треугольная призма",
+  desc: "Врезка наклонной плоскости в тело вращения",
+  preview: "textures/7/preview.png",
 
-    opacityMaterialName: "3",
-    sectionMaterialNames: ["1", "2", "4"]
-    // materialColors можно не задавать
-  }
-];
+  // путь в защищённом API (после ?path=)
+  sourcePath: "models/7.gltf",
+
+  // материал тела (управляется ползунком)
+  opacityMaterialName: "1",
+
+  // материалы-сечения
+  sectionMaterialNames: ["2", "3", "4"],
+
+  // цвета сечений
+  materialColors: {
+    "2": "#d929c1", // круг
+    "3": "#1c58e5", // эллипс
+    "4": "#ddf406" // вспомогательное
+  },
+
+  // ===== CAD-обвязка =====
+cad: {
+  fromNodes: true,
+  lines: [
+    ["a", "b"],
+    ["c", "d"]
+  ]
+}
+}
 
 // ✅ Автоматически генерим sourceId, если не задан вручную
 export const INSETS = RAW_INSETS.map((m) => ({
