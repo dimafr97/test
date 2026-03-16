@@ -229,6 +229,7 @@ cad: {
   ]
 }
 }
+  ]
 
 // ✅ Автоматически генерим sourceId, если не задан вручную
 export const INSETS = RAW_INSETS.map((m) => ({
