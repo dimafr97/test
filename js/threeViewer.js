@@ -412,46 +412,30 @@ function buildSectionEdges(root, sectionMaterialNames = [], materialColors = {})
         continue;
       }
 
-      const positions = Array.from(pos.array);
-      edgesGeom.dispose();
-
-      const wideGeom = new LineSegmentsGeometry();
-      wideGeom.setPositions(positions);
-
       const colorValue =
         (materialColors && materialColors[String(matName)]) ||
         "#ffffff";
 
-      const lineMat = new LineMaterial({
+      const lineMat = new THREE.LineBasicMaterial({
         color: new THREE.Color(colorValue),
-        linewidth: 1.6,
         transparent: true,
         opacity: 1.0,
         depthTest: false,
-        depthWrite: false,
-        dashed: false
+        depthWrite: false
       });
 
-      if (renderer) {
-        const size = new THREE.Vector2();
-        renderer.getDrawingBufferSize(size);
-        lineMat.resolution.set(size.x, size.y);
-      }
+      const lines = new THREE.LineSegments(edgesGeom, lineMat);
+      lines.matrixAutoUpdate = false;
+      lines.frustumCulled = false;
+      lines.renderOrder = 1400;
 
-const lines = new LineSegments2(wideGeom, lineMat);
-lines.matrixAutoUpdate = false;
-lines.frustumCulled = false;
-lines.renderOrder = 1400;
+      lines.matrix.copy(obj.matrixWorld);
+      lines.matrixWorld.copy(obj.matrixWorld);
 
-// сразу копируем матрицу текущего mesh,
-// а не ждём только onBeforeRender
-lines.matrix.copy(obj.matrixWorld);
-lines.matrixWorld.copy(obj.matrixWorld);
-
-lines.onBeforeRender = () => {
-  lines.matrix.copy(obj.matrixWorld);
-  lines.matrixWorld.copy(obj.matrixWorld);
-};
+      lines.onBeforeRender = () => {
+        lines.matrix.copy(obj.matrixWorld);
+        lines.matrixWorld.copy(obj.matrixWorld);
+      };
 
       sectionEdgesGroup.add(lines);
       sectionEdgesMeshes.push(lines);
