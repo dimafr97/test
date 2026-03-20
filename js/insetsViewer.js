@@ -14,7 +14,8 @@ import {
   setCadAlpha,
   setInsetNeutralLighting,
   setSectionEdgesOverlay,
-  clearSectionEdgesOverlay
+  clearSectionEdgesOverlay,
+  setSectionEdgesAlpha
 } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
@@ -248,11 +249,11 @@ function setupUiHandlers() {
   dom.tabVideoBtn?.classList.remove("active");
     // ✅ Ползунок прозрачности (работает только для выбранного материала, например "3")
 dom.insetOpacitySlider?.addEventListener("input", () => {
-  const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
-  const uiOpacity = Math.max(0, Math.min(1, v / 100));   // 0..1
-  const cadAlpha = Math.min(1, Math.max(0, (1 - uiOpacity) / 0.3));
+const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
+const uiOpacity = Math.max(0, Math.min(1, v / 100));   // 0..1
+const cadAlpha = Math.min(1, Math.max(0, (1 - uiOpacity) / 0.3));
 setCadAlpha(cadAlpha);
-
+setSectionEdgesAlpha(cadAlpha);
   // 0..0.7 — реальная прозрачность как раньше
   if (uiOpacity <= 0.7) {
     currentOpacity = uiOpacity;
@@ -371,6 +372,9 @@ setSectionEdgesOverlay(
   secNames,
   meta.materialColors || {}
 );
+
+const edgeAlpha = Math.min(1, Math.max(0, (1 - currentOpacity) / 0.3));
+setSectionEdgesAlpha(edgeAlpha);
 
     // ✅ 4) применяем текущую прозрачность
     applyOpacityToControlled();
