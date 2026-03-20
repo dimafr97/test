@@ -52,7 +52,7 @@ function enterInsetMode() {
   setInsetNeutralLighting(true);
     // Контуры только во Врезках
   setOutlineEnabled(true);
-  setOutlineStyle({ thicknessPx: 1.5, edgesAngle: 60 });
+  setOutlineStyle({ thicknessPx: 2.0, edgesAngle: 60 });
   setInsetBlendState(0, []); // ✅ пока модель не загружена — материалов ещё нет
   setInsetSectionBlendState(0.5, []); // пока не загрузили — материалов нет, но коэффициент фиксируем
 
