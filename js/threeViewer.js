@@ -32,6 +32,11 @@ let insetControlledMaterials = [];  // материалы, которые дел
 // ===== Section blend (сечения: статичный mix) =====
 let insetSectionBlendFactor = 0.5;   // 0..1 (фиксированный микс для сечений)
 let insetSectionMaterials = [];      // материалы сечений, которые делаем opaque в одном из проходов
+// ===== Simple colored edges for section meshes =====
+let sectionEdgesScene = null;
+let sectionEdgesGroup = null;
+let sectionEdgesMeshes = [];
+let rtSE = null; // render target для цветных контуров сечений
 
 let rtA = null;
 let rtB = null;
@@ -79,6 +84,12 @@ cadScene = new THREE.Scene();
 cadGroup = new THREE.Group();
 cadGroup.name = "cad-overlay";
 cadScene.add(cadGroup);
+// Простые цветные контуры сечений: отдельная сцена,
+// потом подмешиваем в финальный композит ПЕРЕД белым outline
+sectionEdgesScene = new THREE.Scene();
+sectionEdgesGroup = new THREE.Group();
+sectionEdgesGroup.name = "section-edges-overlay";
+sectionEdgesScene.add(sectionEdgesGroup);
 
   camera = new THREE.PerspectiveCamera(
     40,
@@ -270,6 +281,14 @@ export function setOutlineStyle({ thicknessPx, edgesAngle } = {}) {
   if (typeof edgesAngle === "number") edgesAngleDeg = edgesAngle;
 }
 
+export function setSectionEdgesOverlay(root, sectionMaterialNames = [], materialColors = {}) {
+  buildSectionEdges(root, sectionMaterialNames, materialColors);
+}
+
+export function clearSectionEdgesOverlay() {
+  clearSectionEdges();
+}
+
 function clearOutlines() {
   if (!outlineGroup) return;
 
@@ -279,6 +298,133 @@ function clearOutlines() {
 
   edgesMeshes = [];
   outlineGroup.clear();
+}
+
+function clearSectionEdges() {
+  if (!sectionEdgesGroup) return;
+
+  for (const e of sectionEdgesMeshes) {
+    e.geometry?.dispose?.();
+    e.material?.dispose?.();
+  }
+
+  sectionEdgesMeshes = [];
+  sectionEdgesGroup.clear();
+}
+
+function buildSectionSubGeometryByMaterialName(obj, materialName) {
+  const geom = obj?.geometry;
+  if (!geom) return null;
+
+  const posAttr = geom.getAttribute("position");
+  if (!posAttr) return null;
+
+  const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+
+  const groups =
+    Array.isArray(geom.groups) && geom.groups.length
+      ? geom.groups
+      : [{
+          start: 0,
+          count: geom.index ? geom.index.count : posAttr.count,
+          materialIndex: 0
+        }];
+
+  const pickedVertexIndices = [];
+
+  for (const group of groups) {
+    const mat =
+      materials[group.materialIndex] ||
+      materials[0] ||
+      null;
+
+    if (!mat) continue;
+    if (String(mat.name) !== String(materialName)) continue;
+
+    if (geom.index) {
+      const indexArray = geom.index.array;
+      const end = group.start + group.count;
+
+      for (let i = group.start; i < end; i++) {
+        pickedVertexIndices.push(indexArray[i]);
+      }
+    } else {
+      const end = group.start + group.count;
+
+      for (let i = group.start; i < end; i++) {
+        pickedVertexIndices.push(i);
+      }
+    }
+  }
+
+  if (!pickedVertexIndices.length) return null;
+
+  const outPos = new Float32Array(pickedVertexIndices.length * 3);
+
+  for (let i = 0; i < pickedVertexIndices.length; i++) {
+    const vi = pickedVertexIndices[i];
+    outPos[i * 3 + 0] = posAttr.getX(vi);
+    outPos[i * 3 + 1] = posAttr.getY(vi);
+    outPos[i * 3 + 2] = posAttr.getZ(vi);
+  }
+
+  const outGeom = new THREE.BufferGeometry();
+  outGeom.setAttribute("position", new THREE.BufferAttribute(outPos, 3));
+
+  return outGeom;
+}
+
+function buildSectionEdges(root, sectionMaterialNames = [], materialColors = {}) {
+  clearSectionEdges();
+
+  if (!root || !sectionEdgesGroup) return;
+  if (!Array.isArray(sectionMaterialNames) || !sectionMaterialNames.length) return;
+
+  const pointNameRe = /^[a-z](\d+)?$/;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    const nm = String(obj.name || "").trim();
+    if (pointNameRe.test(nm)) return;
+
+    for (const matName of sectionMaterialNames) {
+      const subGeom = buildSectionSubGeometryByMaterialName(obj, matName);
+      if (!subGeom) continue;
+
+      const edgesGeom = new THREE.EdgesGeometry(subGeom, 1);
+      subGeom.dispose();
+
+      const pos = edgesGeom.getAttribute("position");
+      if (!pos || pos.count === 0) {
+        edgesGeom.dispose();
+        continue;
+      }
+
+      const colorValue =
+        (materialColors && materialColors[String(matName)]) ||
+        "#ffffff";
+
+      const lineMat = new THREE.LineBasicMaterial({
+        color: new THREE.Color(colorValue),
+        transparent: true,
+        opacity: 1.0,
+        depthTest: false,
+        depthWrite: false
+      });
+
+      const lines = new THREE.LineSegments(edgesGeom, lineMat);
+      lines.matrixAutoUpdate = false;
+      lines.renderOrder = 1400;
+
+      lines.onBeforeRender = () => {
+        lines.matrixWorld.copy(obj.matrixWorld);
+      };
+
+      sectionEdgesGroup.add(lines);
+      sectionEdgesMeshes.push(lines);
+    }
+  });
 }
 
 export function clearCadOverlay() {
@@ -421,6 +567,16 @@ if (!rtD || rtD.width !== w || rtD.height !== h) {
   rtD?.dispose?.();
   rtD = new THREE.WebGLRenderTarget(w, h, params);
 }
+  if (!rtSE || rtSE.width !== w || rtSE.height !== h) {
+  rtSE?.dispose?.();
+  rtSE = new THREE.WebGLRenderTarget(w, h, {
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    format: THREE.RGBAFormat,
+    depthBuffer: false,
+    stencilBuffer: false
+  });
+}
 
   // ===== Normals RT (для контуров) =====
 if (!rtN || rtN.width !== w || rtN.height !== h) {
@@ -461,6 +617,7 @@ uniforms: {
   t10: { value: null }, // body opaque + sec semi
   t01: { value: null }, // body semi + sec opaque
   t11: { value: null }, // body opaque + sec opaque
+  tSE: { value: null }, // цветные контуры сечений
   tN: { value: null },          // normal texture
 tDepth: { value: null },      // depth texture (rtN.depthTexture)
 uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) }, // будет обновляться
@@ -486,6 +643,7 @@ uniform sampler2D t00;
 uniform sampler2D t10;
 uniform sampler2D t01;
 uniform sampler2D t11;
+uniform sampler2D tSE;
 uniform sampler2D tN;
 uniform sampler2D tDepth;
 uniform vec2 uTexel;
@@ -531,6 +689,10 @@ void main() {
   // потом микс по сечениям
   vec4 outC = mix(semiSec, opaSec, s);
   vec3 col = outC.rgb;
+
+  // Сначала подмешиваем цветные простые контуры сечений
+  vec4 secEdge = texture2D(tSE, vUv);
+  col = mix(col, secEdge.rgb, clamp(secEdge.a, 0.0, 1.0));
 
 if (uOutlineOn > 0.5) {
   float ed = edgeDepth(vUv) * uDepthK;
@@ -633,6 +795,23 @@ renderer.setRenderTarget(rtD);
 renderer.clear(true, true, true);
 renderer.render(scene, camera);
 
+// ===== Простые цветные контуры сечений =====
+{
+  const prevClearColor = new THREE.Color();
+  renderer.getClearColor(prevClearColor);
+  const prevClearAlpha = renderer.getClearAlpha();
+
+  renderer.setRenderTarget(rtSE);
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear(true, true, true);
+
+  if (sectionEdgesScene && sectionEdgesGroup && sectionEdgesGroup.children.length) {
+    renderer.render(sectionEdgesScene, camera);
+  }
+
+  renderer.setClearColor(prevClearColor, prevClearAlpha);
+}
+
 // ===== Normals + Depth pass (для контуров) =====
 if (outlineEnabled) {
 
@@ -678,7 +857,7 @@ restoreStates(savedSec);
   postQuad.material.uniforms.t10.value = rtB.texture;
   postQuad.material.uniforms.t01.value = rtC.texture;
   postQuad.material.uniforms.t11.value = rtD.texture;
-
+  postQuad.material.uniforms.tSE.value = rtSE ? rtSE.texture : null;
   postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
   postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
   // ===== Передаём normals и depth в шейдер =====
