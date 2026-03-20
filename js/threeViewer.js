@@ -424,7 +424,7 @@ function buildSectionEdges(root, sectionMaterialNames = [], materialColors = {})
 
       const lineMat = new LineMaterial({
         color: new THREE.Color(colorValue),
-        linewidth: 3.5,
+        linewidth: 1.6,
         transparent: true,
         opacity: 1.0,
         depthTest: false,
@@ -440,6 +440,7 @@ function buildSectionEdges(root, sectionMaterialNames = [], materialColors = {})
 
       const lines = new LineSegments2(wideGeom, lineMat);
       lines.matrixAutoUpdate = false;
+      lines.frustumCulled = false;
       lines.renderOrder = 1400;
 
       lines.onBeforeRender = () => {
