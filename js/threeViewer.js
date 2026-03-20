@@ -232,13 +232,24 @@ export function resize() {
   camera.updateProjectionMatrix();
 
   renderer.setSize(window.innerWidth, window.innerHeight);
+
   if (cadLineMat) {
-  cadLineMat.resolution.set(
-    renderer.domElement.width,
-    renderer.domElement.height
-  );
-}
-    // чтобы RenderTarget пересоздались под новый размер
+    cadLineMat.resolution.set(
+      renderer.domElement.width,
+      renderer.domElement.height
+    );
+  }
+
+  for (const e of sectionEdgesMeshes) {
+    if (e.material && e.material.resolution) {
+      e.material.resolution.set(
+        renderer.domElement.width,
+        renderer.domElement.height
+      );
+    }
+  }
+
+  // чтобы RenderTarget пересоздались под новый размер
   if (insetBlendEnabled) {
     ensureBlendResources();
   }
@@ -401,19 +412,33 @@ function buildSectionEdges(root, sectionMaterialNames = [], materialColors = {})
         continue;
       }
 
+      const positions = Array.from(pos.array);
+      edgesGeom.dispose();
+
+      const wideGeom = new LineSegmentsGeometry();
+      wideGeom.setPositions(positions);
+
       const colorValue =
         (materialColors && materialColors[String(matName)]) ||
         "#ffffff";
 
-      const lineMat = new THREE.LineBasicMaterial({
+      const lineMat = new LineMaterial({
         color: new THREE.Color(colorValue),
+        linewidth: 3.5,
         transparent: true,
         opacity: 1.0,
         depthTest: false,
-        depthWrite: false
+        depthWrite: false,
+        dashed: false
       });
 
-      const lines = new THREE.LineSegments(edgesGeom, lineMat);
+      if (renderer) {
+        const size = new THREE.Vector2();
+        renderer.getDrawingBufferSize(size);
+        lineMat.resolution.set(size.x, size.y);
+      }
+
+      const lines = new LineSegments2(wideGeom, lineMat);
       lines.matrixAutoUpdate = false;
       lines.renderOrder = 1400;
 
