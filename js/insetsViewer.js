@@ -12,7 +12,9 @@ import {
   setOutlineEnabled,
   setOutlineStyle,
   setCadAlpha,
-  setInsetNeutralLighting
+  setInsetNeutralLighting,
+  setSectionEdgesOverlay,
+  clearSectionEdgesOverlay
 } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
@@ -62,11 +64,12 @@ function enterInsetMode() {
 
 function exitInsetMode() {
   document.body.classList.remove("inset-mode");
-    setInsetBlendState(0, []);
+  setInsetBlendState(0, []);
   setInsetBlendEnabled(false);
   setInsetNeutralLighting(false);
-    clearCadOverlay();
-    setOutlineEnabled(false);
+  clearCadOverlay();
+  clearSectionEdgesOverlay();
+  setOutlineEnabled(false);
 }
 // ✅ Собрать все материалы с нужным именем (например "3") внутри загруженной модели
 function collectMaterialsByName(root, name) {
@@ -312,6 +315,7 @@ const mySeq = ++insetLoadSeq;
 
 // ✅ сразу чистим CAD от предыдущей врезки, чтобы не "мигало" старым
 clearCadOverlay();
+clearSectionEdgesOverlay();  
 
 // ✅ показываем viewer
 dom.galleryEl?.classList.add("hidden");
@@ -361,6 +365,12 @@ for (const n of secNames) {
 sectionMaterials = Array.from(new Set(sectionMaterials));
 
 setInsetSectionBlendState(0.5, sectionMaterials);
+
+setSectionEdgesOverlay(
+  root,
+  secNames,
+  meta.materialColors || {}
+);
 
     // ✅ 4) применяем текущую прозрачность
     applyOpacityToControlled();
