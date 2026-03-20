@@ -438,14 +438,20 @@ function buildSectionEdges(root, sectionMaterialNames = [], materialColors = {})
         lineMat.resolution.set(size.x, size.y);
       }
 
-      const lines = new LineSegments2(wideGeom, lineMat);
-      lines.matrixAutoUpdate = false;
-      lines.frustumCulled = false;
-      lines.renderOrder = 1400;
+const lines = new LineSegments2(wideGeom, lineMat);
+lines.matrixAutoUpdate = false;
+lines.frustumCulled = false;
+lines.renderOrder = 1400;
 
-      lines.onBeforeRender = () => {
-        lines.matrixWorld.copy(obj.matrixWorld);
-      };
+// сразу копируем матрицу текущего mesh,
+// а не ждём только onBeforeRender
+lines.matrix.copy(obj.matrixWorld);
+lines.matrixWorld.copy(obj.matrixWorld);
+
+lines.onBeforeRender = () => {
+  lines.matrix.copy(obj.matrixWorld);
+  lines.matrixWorld.copy(obj.matrixWorld);
+};
 
       sectionEdgesGroup.add(lines);
       sectionEdgesMeshes.push(lines);
