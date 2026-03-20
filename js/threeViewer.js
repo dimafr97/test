@@ -412,19 +412,32 @@ function buildSectionEdges(root, sectionMaterialNames = [], materialColors = {})
         continue;
       }
 
+      const positions = Array.from(pos.array);
+      edgesGeom.dispose();
+
+      const wideGeom = new LineSegmentsGeometry();
+      wideGeom.setPositions(positions);
+
       const colorValue =
         (materialColors && materialColors[String(matName)]) ||
         "#ffffff";
 
-      const lineMat = new THREE.LineBasicMaterial({
+      const lineMat = new LineMaterial({
         color: new THREE.Color(colorValue),
+        linewidth: 1.8,
         transparent: true,
         opacity: 1.0,
         depthTest: false,
-        depthWrite: false
+        depthWrite: false,
+        dashed: false
       });
 
-      const lines = new THREE.LineSegments(edgesGeom, lineMat);
+      lineMat.resolution.set(
+        renderer.domElement.width,
+        renderer.domElement.height
+      );
+
+      const lines = new LineSegments2(wideGeom, lineMat);
       lines.matrixAutoUpdate = false;
       lines.frustumCulled = false;
       lines.renderOrder = 1400;
