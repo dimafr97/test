@@ -36,6 +36,7 @@ let insetSectionMaterials = [];      // материалы сечений, ко�
 let sectionEdgesScene = null;
 let sectionEdgesGroup = null;
 let sectionEdgesMeshes = [];
+let sectionEdgesAlpha = 0;
 let rtSE = null; // render target для цветных контуров сечений
 
 let rtA = null;
@@ -300,6 +301,18 @@ export function clearSectionEdgesOverlay() {
   clearSectionEdges();
 }
 
+export function setSectionEdgesAlpha(alpha) {
+  sectionEdgesAlpha = Math.max(0, Math.min(1, Number(alpha) || 0));
+
+  for (const obj of sectionEdgesMeshes) {
+    if (!obj || !obj.material) continue;
+
+    obj.material.transparent = true;
+    obj.material.opacity = sectionEdgesAlpha;
+    obj.material.needsUpdate = true;
+  }
+}
+
 function clearOutlines() {
   if (!outlineGroup) return;
 
@@ -321,6 +334,7 @@ function clearSectionEdges() {
 
   sectionEdgesMeshes = [];
   sectionEdgesGroup.clear();
+  sectionEdgesAlpha = 0;
 }
 
 function buildSectionSubGeometryByMaterialName(obj, materialName) {
@@ -422,15 +436,15 @@ function buildSectionEdges(root, sectionMaterialNames = [], materialColors = {})
         (materialColors && materialColors[String(matName)]) ||
         "#ffffff";
 
-      const lineMat = new LineMaterial({
-        color: new THREE.Color(colorValue),
-        linewidth: 1.8,
-        transparent: true,
-        opacity: 1.0,
-        depthTest: false,
-        depthWrite: false,
-        dashed: false
-      });
+const lineMat = new LineMaterial({
+  color: new THREE.Color(colorValue),
+  linewidth: 2.0,
+  transparent: true,
+  opacity: sectionEdgesAlpha,
+  depthTest: false,
+  depthWrite: false,
+  dashed: false
+});
 
       lineMat.resolution.set(
         renderer.domElement.width,
