@@ -37,6 +37,7 @@ let sectionEdgesScene = null;
 let sectionEdgesGroup = null;
 let sectionEdgesMeshes = [];
 let rtSE = null; // render target для цветных контуров сечений
+let sectionEdgeThicknessPx = 1.75; // визуальная толщина контуров сечений в финальном шейдере
 
 let rtA = null;
 let rtB = null;
@@ -635,13 +636,14 @@ uniforms: {
   t11: { value: null }, // body opaque + sec opaque
   tSE: { value: null }, // цветные контуры сечений
   tN: { value: null },          // normal texture
-tDepth: { value: null },      // depth texture (rtN.depthTexture)
-uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) }, // будет обновляться
-uOutlineOn: { value: 0.0 },   // 0/1
-uDepthK: { value: 1.0 },      // чувствительность по depth
-uNormK: { value: 1.0 },       // чувствительность по нормалям
+  tDepth: { value: null },      // depth texture (rtN.depthTexture)
+  uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) }, // будет обновляться
+  uOutlineOn: { value: 0.0 },   // 0/1
+  uDepthK: { value: 1.0 },      // чувствительность по depth
+  uNormK: { value: 1.0 },       // чувствительность по нормалям
   uBodyMix: { value: 0 },
   uSecMix: { value: 0.5 },
+  uSecEdgePx: { value: 1.75 },
 },
       vertexShader: `
         varying vec2 vUv;
@@ -666,6 +668,7 @@ uniform vec2 uTexel;
 uniform float uOutlineOn;
 uniform float uDepthK;
 uniform float uNormK;
+uniform float uSecEdgePx;
 float edgeDepth(vec2 uv) {
   float d = texture2D(tDepth, uv).r;
   float dR = texture2D(tDepth, uv + vec2(uTexel.x, 0.0)).r;
@@ -679,6 +682,23 @@ float edgeNormal(vec2 uv) {
   vec3 nU = texture2D(tN, uv + vec2(0.0, uTexel.y)).xyz * 2.0 - 1.0;
   float a = max(length(n - nR), length(n - nU));
   return a;
+}
+
+vec4 sampleSectionEdgeThick(vec2 uv) {
+  vec2 o = uTexel * uSecEdgePx;
+
+  vec4 best = texture2D(tSE, uv);
+  vec4 s = texture2D(tSE, uv + vec2( o.x, 0.0)); if (s.a > best.a) best = s;
+  s = texture2D(tSE, uv + vec2(-o.x, 0.0)); if (s.a > best.a) best = s;
+  s = texture2D(tSE, uv + vec2(0.0,  o.y)); if (s.a > best.a) best = s;
+  s = texture2D(tSE, uv + vec2(0.0, -o.y)); if (s.a > best.a) best = s;
+
+  s = texture2D(tSE, uv + vec2( o.x,  o.y)); if (s.a > best.a) best = s;
+  s = texture2D(tSE, uv + vec2(-o.x,  o.y)); if (s.a > best.a) best = s;
+  s = texture2D(tSE, uv + vec2( o.x, -o.y)); if (s.a > best.a) best = s;
+  s = texture2D(tSE, uv + vec2(-o.x, -o.y)); if (s.a > best.a) best = s;
+
+  return best;
 }
 
 uniform float uBodyMix;
@@ -707,7 +727,7 @@ void main() {
   vec3 col = outC.rgb;
 
   // Сначала подмешиваем цветные простые контуры сечений
-  vec4 secEdge = texture2D(tSE, vUv);
+  vec4 secEdge = sampleSectionEdgeThick(vUv);
   col = mix(col, secEdge.rgb, clamp(secEdge.a, 0.0, 1.0));
 
 if (uOutlineOn > 0.5) {
@@ -869,13 +889,14 @@ restoreStates(savedSec);
   // 5) Финальный вывод (2 независимых микса)
   renderer.setRenderTarget(null);
 
-  postQuad.material.uniforms.t00.value = rtA.texture;
-  postQuad.material.uniforms.t10.value = rtB.texture;
-  postQuad.material.uniforms.t01.value = rtC.texture;
-  postQuad.material.uniforms.t11.value = rtD.texture;
-  postQuad.material.uniforms.tSE.value = rtSE ? rtSE.texture : null;
-  postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
-  postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
+postQuad.material.uniforms.t00.value = rtA.texture;
+postQuad.material.uniforms.t10.value = rtB.texture;
+postQuad.material.uniforms.t01.value = rtC.texture;
+postQuad.material.uniforms.t11.value = rtD.texture;
+postQuad.material.uniforms.tSE.value = rtSE ? rtSE.texture : null;
+postQuad.material.uniforms.uBodyMix.value = insetBlendFactor;
+postQuad.material.uniforms.uSecMix.value = insetSectionBlendFactor;
+postQuad.material.uniforms.uSecEdgePx.value = sectionEdgeThicknessPx;
   // ===== Передаём normals и depth в шейдер =====
 // ===== Передаём normals/depth в шейдер только когда контуры включены =====
 postQuad.material.uniforms.uOutlineOn.value = outlineEnabled ? 1.0 : 0.0;
