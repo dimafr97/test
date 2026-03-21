@@ -90,6 +90,24 @@ function collectMaterialsByName(root, name) {
   return Array.from(new Set(out));
 }
 
+function getSectionNameSets(meta) {
+  const primary = Array.isArray(meta?.primarySectionMaterialNames)
+    ? meta.primarySectionMaterialNames.map(String)
+    : (
+        Array.isArray(meta?.sectionMaterialNames)
+          ? meta.sectionMaterialNames.map(String)
+          : []
+      );
+
+  const auxiliary = Array.isArray(meta?.auxSectionMaterialNames)
+    ? meta.auxSectionMaterialNames.map(String)
+    : [];
+
+  const all = Array.from(new Set([...primary, ...auxiliary]));
+
+  return { primary, auxiliary, all };
+}
+
 // ✅ Применить текущую прозрачность ко всем "управляемым" материалам
 function applyOpacityToControlled() {
   for (const m of controlledMaterials) {
@@ -115,17 +133,11 @@ function applyOpacityToControlled() {
 // ✅ Применить “плоские” цвета материалам сечений (например "2" и "3")
 // meta.materialColors ожидается как объект: { "2": "#ff3b30", "3": "#34c759" }
 function applyInsetColors(root, meta) {
-if (!root || !meta) return;
+  if (!root || !meta) return;
 
-// цвета могут быть пустыми — это нормально
-const colors = meta.materialColors || {};
+  const colors = meta.materialColors || {};
+  const { primary, auxiliary, all } = getSectionNameSets(meta);
 
-// список материалов-сечений
-const sectionList =
-  Array.isArray(meta.sectionMaterialNames) && meta.sectionMaterialNames.length
-    ? meta.sectionMaterialNames
-    : ["3", "4"];
-  
   root.traverse((obj) => {
     if (!obj.isMesh) return;
 
@@ -134,42 +146,61 @@ const sectionList =
     for (const m of mats) {
       if (!m) continue;
 
-     const key = String(m.name);
-const isSection = sectionList.includes(key);
-const hex = colors[key];
+      const key = String(m.name);
+      const isPrimary = primary.includes(key);
+      const isAuxiliary = auxiliary.includes(key);
+      const isAnySection = all.includes(key);
+      const hex = colors[key];
 
-if (!isSection && !hex) continue;
+      if (!isAnySection && !hex) continue;
 
-// цвет — только если есть hex
-if (hex && m.color) m.color.set(hex);
+      // цвет — если задан
+      if (hex && m.color) m.color.set(hex);
 
-// DoubleSide — если нужен всем
-m.side = THREE.DoubleSide;
+      m.side = THREE.DoubleSide;
 
-// матовый вид
-if ("metalness" in m) m.metalness = 0;
-if ("roughness" in m) m.roughness = 1;
+      if ("metalness" in m) m.metalness = 0;
+      if ("roughness" in m) m.roughness = 1;
 
-// только сечения — плёнка
-if (isSection) {
-  m.transparent = true;
-  m.opacity = 0.6;
-  m.depthWrite = false;
-  m.depthTest = true;
+      // ОСНОВНЫЕ СЕЧЕНИЯ: заливка + контур
+      if (isPrimary) {
+        m.transparent = true;
+        m.opacity = 0.6;
+        m.depthWrite = false;
+        m.depthTest = true;
 
-  m.forceSinglePass = true;
+        m.forceSinglePass = true;
 
-  m.polygonOffset = true;
-  m.polygonOffsetFactor = 1;
-  m.polygonOffsetUnits = 1;
+        m.polygonOffset = true;
+        m.polygonOffsetFactor = 1;
+        m.polygonOffsetUnits = 1;
 
-  m.blending = THREE.NormalBlending;
+        m.blending = THREE.NormalBlending;
 
-  const idx = sectionList.indexOf(key);
-  obj.renderOrder = 20 + (idx >= 0 ? idx : 0);
-}
+        const idx = primary.indexOf(key);
+        obj.renderOrder = 20 + (idx >= 0 ? idx : 0);
+      }
 
-m.needsUpdate = true;
+      // ВСПОМОГАТЕЛЬНЫЕ СЕЧЕНИЯ: без заливки, только контур
+      if (isAuxiliary) {
+        m.transparent = true;
+        m.opacity = 0.0;
+        m.depthWrite = false;
+        m.depthTest = true;
+
+        m.forceSinglePass = true;
+
+        m.polygonOffset = true;
+        m.polygonOffsetFactor = 1;
+        m.polygonOffsetUnits = 1;
+
+        m.blending = THREE.NormalBlending;
+
+        const idx = auxiliary.indexOf(key);
+        obj.renderOrder = 40 + (idx >= 0 ? idx : 0);
+      }
+
+      m.needsUpdate = true;
     }
   });
 }
@@ -358,10 +389,13 @@ setCadAlpha(cadAlpha);
     setInsetBlendState(0, controlledMaterials);
     // ✅ собираем материалы сечений (2/3/4) и включаем их статичный микс
 sectionMaterials = [];
-const secNames = Array.isArray(meta.sectionMaterialNames) ? meta.sectionMaterialNames : [];
-for (const n of secNames) {
+
+const { primary, all } = getSectionNameSets(meta);
+
+for (const n of primary) {
   sectionMaterials.push(...collectMaterialsByName(root, n));
 }
+
 // уникализируем
 sectionMaterials = Array.from(new Set(sectionMaterials));
 
@@ -369,7 +403,7 @@ setInsetSectionBlendState(0.5, sectionMaterials);
 
 setSectionEdgesOverlay(
   root,
-  secNames,
+  all,
   meta.materialColors || {}
 );
 
