@@ -7,6 +7,7 @@ import {
   setInsetBlendEnabled,
   setInsetBlendState,
   setInsetSectionBlendState,
+  setOutlineExcludedMaterials,
   setCadOverlay,
   clearCadOverlay,
   setOutlineEnabled,
@@ -66,6 +67,8 @@ function enterInsetMode() {
 function exitInsetMode() {
   document.body.classList.remove("inset-mode");
   setInsetBlendState(0, []);
+  setInsetSectionBlendState(0.5, []);
+  setOutlineExcludedMaterials([]);
   setInsetBlendEnabled(false);
   setInsetNeutralLighting(false);
   clearCadOverlay();
@@ -389,17 +392,25 @@ setCadAlpha(cadAlpha);
     setInsetBlendState(0, controlledMaterials);
     // ✅ собираем материалы сечений (2/3/4) и включаем их статичный микс
 sectionMaterials = [];
+let outlineExcludedSectionMaterials = [];
 
 const { primary, all } = getSectionNameSets(meta);
 
+// Основные сечения — для заливки и section-blend
 for (const n of primary) {
   sectionMaterials.push(...collectMaterialsByName(root, n));
 }
-
-// уникализируем
 sectionMaterials = Array.from(new Set(sectionMaterials));
 
 setInsetSectionBlendState(0.5, sectionMaterials);
+
+// Все сечения — чтобы белый контур не рисовался по ним вообще
+for (const n of all) {
+  outlineExcludedSectionMaterials.push(...collectMaterialsByName(root, n));
+}
+outlineExcludedSectionMaterials = Array.from(new Set(outlineExcludedSectionMaterials));
+
+setOutlineExcludedMaterials(outlineExcludedSectionMaterials);
 
 setSectionEdgesOverlay(
   root,
