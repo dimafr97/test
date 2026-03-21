@@ -118,8 +118,8 @@ cad: {
   opacityMaterialName: "1",
 
 // материалы-сечения
-primarySectionMaterialNames: ["2"],
-auxSectionMaterialNames: ["3"],
+primarySectionMaterialNames: ["3"],
+auxSectionMaterialNames: ["2"],
 
 
   // цвета сечений
@@ -150,8 +150,8 @@ cad: {
   opacityMaterialName: "1",
 
 // материалы-сечения
-primarySectionMaterialNames: ["2"],
-auxSectionMaterialNames: ["3", "4"],
+primarySectionMaterialNames: ["3"],
+auxSectionMaterialNames: ["2", "4"],
 
 
   // цвета сечений
@@ -222,8 +222,8 @@ cad: {
   opacityMaterialName: "1",
 
 // материалы-сечения
-primarySectionMaterialNames: ["2"],
-auxSectionMaterialNames: ["3", "4"],
+primarySectionMaterialNames: ["3"],
+auxSectionMaterialNames: ["2", "4"],
 
 
   // цвета сечений
@@ -255,8 +255,8 @@ cad: {
   opacityMaterialName: "1",
 
 // материалы-сечения
-primarySectionMaterialNames: ["2"],
-auxSectionMaterialNames: ["3", "4"],
+primarySectionMaterialNames: ["3"],
+auxSectionMaterialNames: ["2", "4"],
 
 
   // цвета сечений
@@ -288,8 +288,8 @@ cad: {
   opacityMaterialName: "1",
 
 // материалы-сечения
-primarySectionMaterialNames: ["2"],
-auxSectionMaterialNames: ["3", "4"],
+primarySectionMaterialNames: ["3"],
+auxSectionMaterialNames: ["2", "4"],
 
 
   // цвета сечений
