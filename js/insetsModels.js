@@ -50,8 +50,10 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3", "4"],
+// материалы-сечения
+primarySectionMaterialNames: ["2", "3"],
+auxSectionMaterialNames: ["4"],
+
 
   // цвета сечений
   materialColors: {
@@ -82,8 +84,10 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3", "4"],
+// материалы-сечения
+primarySectionMaterialNames: ["2", "3"],
+auxSectionMaterialNames: ["4"],
+
 
   // цвета сечений
   materialColors: {
@@ -113,8 +117,10 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3"],
+// материалы-сечения
+primarySectionMaterialNames: ["2"],
+auxSectionMaterialNames: ["3"],
+
 
   // цвета сечений
   materialColors: {
@@ -143,8 +149,10 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3", "4"],
+// материалы-сечения
+primarySectionMaterialNames: ["2"],
+auxSectionMaterialNames: ["3", "4"],
+
 
   // цвета сечений
   materialColors: {
@@ -175,8 +183,10 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3", "4", "5"],
+// материалы-сечения
+primarySectionMaterialNames: ["2", "3"],
+auxSectionMaterialNames: ["4", "5"],
+
 
   // цвета сечений
   materialColors: {
@@ -211,8 +221,10 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3", "4"],
+// материалы-сечения
+primarySectionMaterialNames: ["2"],
+auxSectionMaterialNames: ["3", "4"],
+
 
   // цвета сечений
   materialColors: {
@@ -242,8 +254,10 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3", "4"],
+// материалы-сечения
+primarySectionMaterialNames: ["2"],
+auxSectionMaterialNames: ["3", "4"],
+
 
   // цвета сечений
   materialColors: {
@@ -273,8 +287,10 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3", "4"],
+// материалы-сечения
+primarySectionMaterialNames: ["2"],
+auxSectionMaterialNames: ["3", "4"],
+
 
   // цвета сечений
   materialColors: {
@@ -304,8 +320,9 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3", "4", "5"],
+// материалы-сечения
+primarySectionMaterialNames: ["2", "3"],
+auxSectionMaterialNames: ["4", "5"],
 
   // цвета сечений
   materialColors: {
@@ -338,8 +355,9 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3", "4", "5", "6"],
+// материалы-сечения
+primarySectionMaterialNames: ["2", "3"],
+auxSectionMaterialNames: ["4", "5", "6"],
 
   // цвета сечений
   materialColors: {
