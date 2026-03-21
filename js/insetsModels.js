@@ -17,8 +17,9 @@ const RAW_INSETS = [
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
-  // материалы-сечения
-  sectionMaterialNames: ["2", "3", "4"],
+// материалы-сечения
+primarySectionMaterialNames: ["2", "3"],
+auxSectionMaterialNames: ["4"],
 
   // цвета сечений
   materialColors: {
