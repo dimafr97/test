@@ -32,6 +32,7 @@ let insetControlledMaterials = [];  // материалы, которые дел
 // ===== Section blend (сечения: статичный mix) =====
 let insetSectionBlendFactor = 0.5;   // 0..1 (фиксированный микс для сечений)
 let insetSectionMaterials = [];      // материалы сечений, которые делаем opaque в одном из проходов
+let outlineExcludedMaterials = [];   // все материалы, которые надо исключить из white outline
 // ===== Simple colored edges for section meshes =====
 let sectionEdgesScene = null;
 let sectionEdgesGroup = null;
@@ -278,6 +279,10 @@ export function setInsetBlendState(factor01, controlledMats) {
 export function setInsetSectionBlendState(factor01, sectionMats) {
   insetSectionBlendFactor = THREE.MathUtils.clamp(Number(factor01) || 0, 0, 1);
   insetSectionMaterials = Array.isArray(sectionMats) ? sectionMats : [];
+}
+
+export function setOutlineExcludedMaterials(materials) {
+  outlineExcludedMaterials = Array.isArray(materials) ? materials : [];
 }
 
 // ===============================
@@ -858,10 +863,11 @@ renderer.render(scene, camera);
 // ===== Normals + Depth pass (для контуров) =====
 if (outlineEnabled) {
 
-  // ✅ временно прячем сечения, чтобы их НЕ было в normals-pass (и не было контура по ним)
+  // ✅ временно прячем все сечения, чтобы их НЕ было в normals-pass
+  // и белый контур не появлялся на их пересечениях
   const hiddenSections = [];
-  if (currentModel && Array.isArray(insetSectionMaterials) && insetSectionMaterials.length) {
-    const secSet = new Set(insetSectionMaterials);
+  if (currentModel && Array.isArray(outlineExcludedMaterials) && outlineExcludedMaterials.length) {
+    const secSet = new Set(outlineExcludedMaterials);
 
     currentModel.traverse((obj) => {
       if (!obj.isMesh) return;
