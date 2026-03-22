@@ -220,30 +220,41 @@ function startModelLoading(meta) {
 }
 
 function configureViewTabsForModel(meta) {
-  const { tabSchemeBtn, tabVideoBtn } = dom;
+  const { tab3dBtn, tabSchemeBtn, tabVideoBtn } = dom;
 
   const hasScheme = meta.schemes && meta.schemes.length > 0;
   const hasVideo = meta.video && meta.video.length > 0;
 
+  // ✅ после режима Врезок обязательно полностью восстанавливаем вкладки
+  if (tab3dBtn) {
+    tab3dBtn.style.display = "";
+    tab3dBtn.classList.remove("disabled");
+  }
+
+  if (tabSchemeBtn) {
+    tabSchemeBtn.style.display = "";
+    tabSchemeBtn.classList.toggle("disabled", !hasScheme);
+  }
+
+  if (tabVideoBtn) {
+    tabVideoBtn.style.display = "";
+    tabVideoBtn.classList.toggle("disabled", !hasVideo);
+  }
+
   if (hasScheme) {
-    tabSchemeBtn.classList.remove("disabled");
     setSchemeImages(meta.schemes);
   } else {
-    tabSchemeBtn.classList.add("disabled");
     setSchemeImages([]);
   }
 
   if (hasVideo) {
-    tabVideoBtn.classList.remove("disabled");
     setVideoList(meta.video);
   } else {
-    tabVideoBtn.classList.add("disabled");
     setVideoList([]);
   }
 
   setViewMode("3d");
 }
-
 function setViewMode(mode) {
   activeView = mode;
 
