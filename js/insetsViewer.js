@@ -407,6 +407,10 @@ if (dom.insetOpacitySlider) {
 
 }
 
+function getIndex(id) {
+  return INSETS.findIndex((m) => m.id === id);
+}
+
 function setUiHidden(hidden) {
   const toolbar = dom?.viewerToolbarEl || document.querySelector(".viewer-toolbar");
   const statusEl = dom?.statusEl;
