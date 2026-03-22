@@ -19,6 +19,25 @@ const INSET_SOURCE_MODELS = (INSET_SOURCE_DEFS || []).map((d) => ({
   textures: null
 }));
 export const MODELS = [
+
+    {
+    id: "arch_0",
+    name: "Общая теория / Введение",
+    desc: "Построение + Видео",
+    preview: `${BASE}textures/doric/preview.png`,
+    thumbLetter: "0",
+
+    // ВАЖНО: у нулевой карточки нет url/source для 3D
+    schemes: [
+      `${BASE}textures/doric/s1.jpg`,
+      `${BASE}textures/doric/s2.jpg`
+    ],
+
+    video: [
+      "https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/doric/v1.mp4"
+    ]
+  },
+  
   {
     id: "doric",
     name: "Дорическая капитель",
