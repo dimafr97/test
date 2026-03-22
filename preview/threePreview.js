@@ -40,7 +40,7 @@ const renderer = new THREE.WebGLRenderer({
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NoToneMapping;
 
-  renderer.setPixelRatio(2); // 🔥 фиксированное качество (лучше и стабильнее)
+renderer.setPixelRatio(4);
   renderer.setClearColor(0x000000, 0);
 
   container.innerHTML = "";
@@ -65,7 +65,7 @@ return {
   outlineExcludedMaterials: [],
   sectionBlend: 0.5,
   outlineEnabled: true,
-  outlineThicknessPx: 1.5,
+  outlineThicknessPx: 2.0,
 
   sectionEdgesScene,
   sectionEdgesGroup,
@@ -507,6 +507,12 @@ function ensurePreviewResources(three) {
     });
   }
 
+    // Максимальное качество для генератора: MSAA на всех RT
+  three.rtBase.samples = 4;
+  three.rtSec.samples = 4;
+  three.rtN.samples = 4;
+  three.rtSE.samples = 4;
+
   if (!three.postScene) {
     three.postScene = new THREE.Scene();
     three.postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -572,23 +578,30 @@ function ensurePreviewResources(three) {
           float s = clamp(uSecMix, 0.0, 1.0);
           vec4 outC = mix(c0, c1, s);
           vec3 col = outC.rgb;
+          float outA = outC.a;
 
+          // Цветные контуры сечений
           vec4 secEdge = texture2D(tSE, vUv);
-          col = mix(col, secEdge.rgb, clamp(secEdge.a, 0.0, 1.0));
+          float secA = clamp(secEdge.a, 0.0, 1.0);
+          col = mix(col, secEdge.rgb, secA);
+          outA = max(outA, secA);
 
+          // Белый outline
           if (uOutlineOn > 0.5) {
             float ed = edgeDepth(vUv) * uDepthK;
             float en = edgeNormal(vUv) * uNormK;
 
             float e = max(
-smoothstep(0.0005, 0.004, ed),
-smoothstep(0.03, 0.15, en)
+              smoothstep(0.0005, 0.004, ed),
+              smoothstep(0.03, 0.15, en)
             );
 
-            col = mix(col, vec3(1.0), e * 0.7);
+            float outlineA = e * 0.7;
+            col = mix(col, vec3(1.0), outlineA);
+            outA = max(outA, outlineA);
           }
 
-          gl_FragColor = vec4(toSRGB(col), outC.a);
+          gl_FragColor = vec4(toSRGB(col), outA);
         }
       `,
       depthTest: false,
