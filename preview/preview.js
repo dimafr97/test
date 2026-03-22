@@ -9,6 +9,8 @@ import {
   rotatePreviewYaw,
   rotatePreviewPitch,
   renderPreview,
+  setPreviewBodyMaterials,
+  setPreviewBodyBlend,
   setPreviewSectionMaterials,
   setPreviewSectionBlend,
   setPreviewOutlineEnabled,
@@ -261,6 +263,10 @@ async function loadSelected() {
     applyDefaultBodyOpacity(root, meta.opacityMaterialName, 0.5);
 
     setPreviewModel(three, root);
+
+    const bodyMaterials = collectMaterialsByName(root, meta.opacityMaterialName);
+    setPreviewBodyMaterials(three, bodyMaterials);
+    setPreviewBodyBlend(three, 0.0);
 
     // section materials / outline exclusion / colored edges — как во врезках
     let sectionMaterials = [];
