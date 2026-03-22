@@ -1,4 +1,7 @@
 import * as THREE from "three";
+import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/addons/lines/LineMaterial.js";
 
 const CAD_COLOR = 0xdf1a84;
 
@@ -20,6 +23,10 @@ export function initPreviewThree(container, size) {
   const cadGroup = new THREE.Group();
   cadGroup.name = "cad-preview";
   cadScene.add(cadGroup);
+  const sectionEdgesScene = new THREE.Scene();
+  const sectionEdgesGroup = new THREE.Group();
+  sectionEdgesGroup.name = "section-edges-preview";
+  sectionEdgesScene.add(sectionEdgesGroup);
 
   const camera = new THREE.PerspectiveCamera(25, 1, 0.1, 50);
 
@@ -43,14 +50,24 @@ return {
   scene,
   cadScene,
   cadGroup,
+  sectionEdgesScene,
+  sectionEdgesGroup,
   camera,
   renderer,
   currentModel: null,
   size,
 
   sectionMaterials: [],
+  outlineExcludedMaterials: [],
   sectionBlend: 0.5,
   outlineEnabled: true,
+  outlineThicknessPx: 2.0,
+
+  sectionEdgesScene: null,
+  sectionEdgesGroup: null,
+  sectionEdgesMeshes: [],
+  sectionEdgesAlpha: 0,
+  rtSE: null,
 
   rtBase: null,
   rtSec: null,
@@ -112,6 +129,26 @@ export function setPreviewSectionBlend(three, factor01) {
 
 export function setPreviewOutlineEnabled(three, enabled) {
   three.outlineEnabled = !!enabled;
+}
+
+export function setPreviewOutlineExcludedMaterials(three, materials) {
+  three.outlineExcludedMaterials = Array.isArray(materials) ? materials : [];
+}
+
+export function setPreviewSectionEdgesAlpha(three, alpha) {
+  const a = Math.max(0, Math.min(1, Number(alpha) || 0));
+  three.sectionEdgesAlpha = a;
+
+  for (const obj of three.sectionEdgesMeshes) {
+    if (!obj || !obj.material) continue;
+    obj.material.transparent = true;
+    obj.material.opacity = a;
+    obj.material.needsUpdate = true;
+  }
+}
+
+export function setPreviewSectionEdgesOverlay(three, root, sectionMaterialNames = [], materialColors = {}) {
+  buildPreviewSectionEdges(three, root, sectionMaterialNames, materialColors);
 }
 
 export function renderPreview(three) {
@@ -181,12 +218,20 @@ export function renderPreview(three) {
   renderer.clear(true, true, true);
   renderer.render(scene, camera);
   restoreStates(savedSec);
+    // Colored section edges
+  renderer.setRenderTarget(three.rtSE);
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear(true, true, true);
+
+  if (three.sectionEdgesScene && three.sectionEdgesGroup && three.sectionEdgesGroup.children.length) {
+    renderer.render(three.sectionEdgesScene, camera);
+  }
 
   // Normals + depth for outline, while hiding sections (как в основном приложении)
   if (three.outlineEnabled) {
     const hiddenSections = [];
-    if (three.currentModel && Array.isArray(three.sectionMaterials) && three.sectionMaterials.length) {
-      const secSet = new Set(three.sectionMaterials);
+    if (three.currentModel && Array.isArray(three.outlineExcludedMaterials) && three.outlineExcludedMaterials.length) {
+      const secSet = new Set(three.outlineExcludedMaterials);
 
       three.currentModel.traverse((obj) => {
         if (!obj.isMesh) return;
@@ -221,9 +266,11 @@ export function renderPreview(three) {
   const mat = three.postQuad.material;
   mat.uniforms.tBase.value = three.rtBase.texture;
   mat.uniforms.tSecOpaque.value = three.rtSec.texture;
+  mat.uniforms.tSE.value = three.rtSE ? three.rtSE.texture : null;
   mat.uniforms.tN.value = three.outlineEnabled ? three.rtN.texture : null;
   mat.uniforms.tDepth.value = three.outlineEnabled ? three.rtN.depthTexture : null;
-  mat.uniforms.uTexel.value.set(1 / three.rtN.width, 1 / three.rtN.height);
+  const k = Math.max(0.5, Number(three.outlineThicknessPx) || 2.0);
+  mat.uniforms.uTexel.value.set(k / three.rtN.width, k / three.rtN.height);
   mat.uniforms.uSecMix.value = three.sectionBlend;
   mat.uniforms.uOutlineOn.value = three.outlineEnabled ? 1.0 : 0.0;
 
@@ -244,13 +291,154 @@ export function renderPNG(three) {
   return three.renderer.domElement.toDataURL("image/png");
 }
 
+function clearPreviewSectionEdges(three) {
+  if (!three?.sectionEdgesGroup) return;
+
+  for (const e of three.sectionEdgesMeshes) {
+    e.geometry?.dispose?.();
+    e.material?.dispose?.();
+  }
+
+  three.sectionEdgesMeshes = [];
+  three.sectionEdgesGroup.clear();
+  three.sectionEdgesAlpha = 0;
+}
+
+function buildPreviewSectionSubGeometryByMaterialName(obj, materialName) {
+  const geom = obj?.geometry;
+  if (!geom) return null;
+
+  const posAttr = geom.getAttribute("position");
+  if (!posAttr) return null;
+
+  const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+
+  const groups =
+    Array.isArray(geom.groups) && geom.groups.length
+      ? geom.groups
+      : [{
+          start: 0,
+          count: geom.index ? geom.index.count : posAttr.count,
+          materialIndex: 0
+        }];
+
+  const pickedVertexIndices = [];
+
+  for (const group of groups) {
+    const mat = materials[group.materialIndex] || materials[0] || null;
+    if (!mat) continue;
+    if (String(mat.name) !== String(materialName)) continue;
+
+    if (geom.index) {
+      const indexArray = geom.index.array;
+      const end = group.start + group.count;
+      for (let i = group.start; i < end; i++) {
+        pickedVertexIndices.push(indexArray[i]);
+      }
+    } else {
+      const end = group.start + group.count;
+      for (let i = group.start; i < end; i++) {
+        pickedVertexIndices.push(i);
+      }
+    }
+  }
+
+  if (!pickedVertexIndices.length) return null;
+
+  const outPos = new Float32Array(pickedVertexIndices.length * 3);
+
+  for (let i = 0; i < pickedVertexIndices.length; i++) {
+    const vi = pickedVertexIndices[i];
+    outPos[i * 3 + 0] = posAttr.getX(vi);
+    outPos[i * 3 + 1] = posAttr.getY(vi);
+    outPos[i * 3 + 2] = posAttr.getZ(vi);
+  }
+
+  const outGeom = new THREE.BufferGeometry();
+  outGeom.setAttribute("position", new THREE.BufferAttribute(outPos, 3));
+
+  return outGeom;
+}
+
+function buildPreviewSectionEdges(three, root, sectionMaterialNames = [], materialColors = {}) {
+  clearPreviewSectionEdges(three);
+
+  if (!three?.sectionEdgesGroup || !root) return;
+  if (!Array.isArray(sectionMaterialNames) || !sectionMaterialNames.length) return;
+
+  const pointNameRe = /^[a-z](\d+)?$/;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    const nm = String(obj.name || "").trim();
+    if (pointNameRe.test(nm)) return;
+
+    for (const matName of sectionMaterialNames) {
+      const subGeom = buildPreviewSectionSubGeometryByMaterialName(obj, matName);
+      if (!subGeom) continue;
+
+      const edgesGeom = new THREE.EdgesGeometry(subGeom, 1);
+      subGeom.dispose();
+
+      const pos = edgesGeom.getAttribute("position");
+      if (!pos || pos.count === 0) {
+        edgesGeom.dispose();
+        continue;
+      }
+
+      const positions = Array.from(pos.array);
+      edgesGeom.dispose();
+
+      const wideGeom = new LineSegmentsGeometry();
+      wideGeom.setPositions(positions);
+
+      const colorValue =
+        (materialColors && materialColors[String(matName)]) || "#ffffff";
+
+      const lineMat = new LineMaterial({
+        color: new THREE.Color(colorValue),
+        linewidth: 2.0,
+        transparent: true,
+        opacity: three.sectionEdgesAlpha,
+        depthTest: false,
+        depthWrite: false,
+        dashed: false
+      });
+
+      lineMat.resolution.set(
+        three.renderer.domElement.width,
+        three.renderer.domElement.height
+      );
+
+      const lines = new LineSegments2(wideGeom, lineMat);
+      lines.matrixAutoUpdate = false;
+      lines.frustumCulled = false;
+      lines.renderOrder = 1400;
+
+      lines.matrix.copy(obj.matrixWorld);
+      lines.matrixWorld.copy(obj.matrixWorld);
+
+      lines.onBeforeRender = () => {
+        lines.matrix.copy(obj.matrixWorld);
+        lines.matrixWorld.copy(obj.matrixWorld);
+      };
+
+      three.sectionEdgesGroup.add(lines);
+      three.sectionEdgesMeshes.push(lines);
+    }
+  });
+}
+
 function disposePreviewTargets(three) {
   three.rtBase?.dispose?.();
   three.rtSec?.dispose?.();
   three.rtN?.dispose?.();
+  three.rtSE?.dispose?.();
   three.rtBase = null;
   three.rtSec = null;
   three.rtN = null;
+  three.rtSE = null;
 }
 
 function ensurePreviewResources(three) {
@@ -293,6 +481,17 @@ function ensurePreviewResources(three) {
     three.rtN.depthTexture.type = THREE.UnsignedShortType;
   }
 
+    if (!three.rtSE || three.rtSE.width !== w || three.rtSE.height !== h) {
+    three.rtSE?.dispose?.();
+    three.rtSE = new THREE.WebGLRenderTarget(w, h, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      depthBuffer: false,
+      stencilBuffer: false
+    });
+  }
+
   if (!three.postScene) {
     three.postScene = new THREE.Scene();
     three.postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -301,6 +500,7 @@ function ensurePreviewResources(three) {
       uniforms: {
         tBase: { value: null },       // body semi + sec semi
         tSecOpaque: { value: null },  // body semi + sec opaque
+        tSE: { value: null },         // цветные контуры сечений
         tN: { value: null },
         tDepth: { value: null },
         uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) },
@@ -323,6 +523,7 @@ function ensurePreviewResources(three) {
 
         uniform sampler2D tBase;
         uniform sampler2D tSecOpaque;
+        uniform sampler2D tSE;
         uniform sampler2D tN;
         uniform sampler2D tDepth;
         uniform vec2 uTexel;
@@ -356,6 +557,9 @@ function ensurePreviewResources(three) {
           float s = clamp(uSecMix, 0.0, 1.0);
           vec4 outC = mix(c0, c1, s);
           vec3 col = outC.rgb;
+
+          vec4 secEdge = texture2D(tSE, vUv);
+          col = mix(col, secEdge.rgb, clamp(secEdge.a, 0.0, 1.0));
 
           if (uOutlineOn > 0.5) {
             float ed = edgeDepth(vUv) * uDepthK;
