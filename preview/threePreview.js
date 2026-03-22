@@ -61,10 +61,10 @@ return {
   outlineExcludedMaterials: [],
   sectionBlend: 0.5,
   outlineEnabled: true,
-  outlineThicknessPx: 2.0,
+  outlineThicknessPx: 1.5,
 
-  sectionEdgesScene: null,
-  sectionEdgesGroup: null,
+  sectionEdgesScene,
+  sectionEdgesGroup,
   sectionEdgesMeshes: [],
   sectionEdgesAlpha: 0,
   rtSE: null,
