@@ -110,8 +110,10 @@ function exitInsetMode() {
   document.body.classList.remove("inset-mode");
   document.body.classList.remove("inset-has-3d");
   document.body.classList.remove("inset-no-tabs");
+  document.body.classList.remove("inset-view-3d");
+  document.body.classList.remove("inset-view-scheme");
+  document.body.classList.remove("inset-view-video");
   document.body.classList.remove("video-playing");
-
   setInsetBlendState(0, []);
   setInsetSectionBlendState(0.5, []);
   setOutlineExcludedMaterials([]);
@@ -127,6 +129,8 @@ function exitInsetMode() {
 
   if (dom?.schemeOverlayEl) dom.schemeOverlayEl.style.display = "none";
   if (dom?.videoOverlayEl) dom.videoOverlayEl.style.display = "none";
+    setCanvasInteractionEnabled(true);
+  activeView = "3d";
 }
 // ✅ Собрать все материалы с нужным именем (например "3") внутри загруженной модели
 function collectMaterialsByName(root, name) {
@@ -450,6 +454,19 @@ function chooseStartView(meta) {
   return "3d";
 }
 
+function setInsetViewClass(mode) {
+  document.body.classList.remove("inset-view-3d", "inset-view-scheme", "inset-view-video");
+
+  if (mode === "3d") document.body.classList.add("inset-view-3d");
+  if (mode === "scheme") document.body.classList.add("inset-view-scheme");
+  if (mode === "video") document.body.classList.add("inset-view-video");
+}
+
+function setCanvasInteractionEnabled(enabled) {
+  if (!dom?.canvasEl) return;
+  dom.canvasEl.style.pointerEvents = enabled ? "auto" : "none";
+}
+
 function configureViewTabsForInset(meta) {
   currentMeta = meta;
 
@@ -484,10 +501,15 @@ function configureViewTabsForInset(meta) {
 
 function setViewMode(mode) {
   activeView = mode;
+  setInsetViewClass(mode);
 
   if (dom.tab3dBtn) dom.tab3dBtn.classList.toggle("active", mode === "3d");
   if (dom.tabSchemeBtn) dom.tabSchemeBtn.classList.toggle("active", mode === "scheme");
   if (dom.tabVideoBtn) dom.tabVideoBtn.classList.toggle("active", mode === "video");
+
+  // В 3D canvas должен принимать жесты.
+  // В Схемах и Видео — нет, чтобы не мешал overlay.
+  setCanvasInteractionEnabled(mode === "3d");
 
   if (dom.schemeOverlayEl) {
     const isScheme = mode === "scheme";
@@ -524,6 +546,9 @@ export function showGallery() {
   document.body.classList.remove("video-playing");
   document.body.classList.remove("inset-has-3d");
   document.body.classList.remove("inset-no-tabs");
+  document.body.classList.remove("inset-view-3d");
+  document.body.classList.remove("inset-view-scheme");
+  document.body.classList.remove("inset-view-video");
 
   galleryEl?.classList.remove("hidden");
   viewerWrapperEl?.classList.remove("visible");
@@ -533,6 +558,7 @@ export function showGallery() {
   currentId = null;
   currentMeta = null;
   activeView = "3d";
+  setCanvasInteractionEnabled(true);
 
   exitInsetMode();
 
@@ -576,6 +602,8 @@ if (dom.modelLabelEl) dom.modelLabelEl.textContent = meta.name;
 configureViewTabsForInset(meta);
 const startView = chooseStartView(meta);
 const { has3d } = getInsetCapabilities(meta);
+  setInsetViewClass(startView);
+setCanvasInteractionEnabled(startView === "3d");
 
 // ✅ если у врезки нет 3D (нулевая карточка) — модель не грузим
 if (!has3d) {
