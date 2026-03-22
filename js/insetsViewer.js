@@ -20,9 +20,13 @@ import {
 } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
+import { initScheme, setSchemeImages, activateScheme, deactivateScheme } from "./scheme.js";
+import { initVideo, setVideoList, activateVideo, deactivateVideo } from "./video.js";
 
 let dom = null;
 let currentId = null;
+let currentMeta = null;
+let activeView = "3d";
 // ✅ защита от гонок при быстрых переключениях врезок
 let insetLoadSeq = 0;
 // ✅ Материалы, которыми управляет ползунок прозрачности
@@ -35,7 +39,43 @@ export function initInsetsViewer(refs) {
   dom = { ...refs };
   if (!dom.canvasEl) throw new Error("initInsetsViewer: canvasEl missing");
 
+  if (!dom.viewerToolbarEl) dom.viewerToolbarEl = document.querySelector(".viewer-toolbar");
+  if (!dom.schemeOverlayEl) dom.schemeOverlayEl = document.getElementById("schemeOverlay");
+  if (!dom.schemeImgEl) dom.schemeImgEl = document.getElementById("schemeImage");
+  if (!dom.videoOverlayEl) dom.videoOverlayEl = document.getElementById("videoOverlay");
+  if (!dom.videoListEl) dom.videoListEl = document.getElementById("videoList");
+  if (!dom.videoEmptyEl) dom.videoEmptyEl = document.getElementById("videoEmpty");
 
+  initScheme({
+    overlayEl: dom.schemeOverlayEl,
+    imgEl: dom.schemeImgEl,
+    onUiVisibility: (hidden) => {
+      if (activeView !== "scheme") return;
+      setUiHidden(hidden);
+    }
+  });
+
+  initVideo(
+    {
+      overlayEl: dom.videoOverlayEl,
+      listEl: dom.videoListEl,
+      emptyEl: dom.videoEmptyEl,
+      toolbarEl: dom.viewerToolbarEl,
+      tab3dBtn: dom.tab3dBtn,
+      tabSchemeBtn: dom.tabSchemeBtn,
+      tabVideoBtn: dom.tabVideoBtn
+    },
+    {
+      onPlay: () => {
+        setUiHidden(false);
+        document.body.classList.add("video-playing");
+      },
+      onPause: () => {
+        setUiHidden(false);
+        document.body.classList.remove("video-playing");
+      }
+    }
+  );
 
   setupUiHandlers();
 
@@ -66,14 +106,25 @@ function enterInsetMode() {
 
 function exitInsetMode() {
   document.body.classList.remove("inset-mode");
+  document.body.classList.remove("inset-has-3d");
+  document.body.classList.remove("inset-no-tabs");
+  document.body.classList.remove("video-playing");
+
   setInsetBlendState(0, []);
   setInsetSectionBlendState(0.5, []);
   setOutlineExcludedMaterials([]);
   setInsetBlendEnabled(false);
   setInsetNeutralLighting(false);
+
   clearCadOverlay();
   clearSectionEdgesOverlay();
   setOutlineEnabled(false);
+
+  deactivateScheme();
+  deactivateVideo();
+
+  if (dom?.schemeOverlayEl) dom.schemeOverlayEl.style.display = "none";
+  if (dom?.videoOverlayEl) dom.videoOverlayEl.style.display = "none";
 }
 // ✅ Собрать все материалы с нужным именем (например "3") внутри загруженной модели
 function collectMaterialsByName(root, name) {
@@ -276,12 +327,25 @@ function setupUiHandlers() {
     showGallery();
   });
 
-  // Вкладки 3D/Построение/Видео в inset-mode скрыты CSS'ом,
-  // но на всякий случай удаляем active-классы
-  dom.tab3dBtn?.classList.add("active");
-  dom.tabSchemeBtn?.classList.remove("active");
-  dom.tabVideoBtn?.classList.remove("active");
-    // ✅ Ползунок прозрачности (работает только для выбранного материала, например "3")
+  dom.tab3dBtn?.addEventListener("click", () => {
+    if (!currentMeta) return;
+    if (!getInsetCapabilities(currentMeta).has3d) return;
+    setViewMode("3d");
+  });
+
+  dom.tabSchemeBtn?.addEventListener("click", () => {
+    if (!currentMeta) return;
+    if (!getInsetCapabilities(currentMeta).hasScheme) return;
+    setViewMode("scheme");
+  });
+
+  dom.tabVideoBtn?.addEventListener("click", () => {
+    if (!currentMeta) return;
+    if (!getInsetCapabilities(currentMeta).hasVideo) return;
+    setViewMode("video");
+  });
+
+  // ✅ Ползунок прозрачности (работает только для выбранного материала, например "3")
 dom.insetOpacitySlider?.addEventListener("input", () => {
 const v = Number(dom.insetOpacitySlider.value || 100); // 0..100
 const uiOpacity = Math.max(0, Math.min(1, v / 100));   // 0..1
@@ -319,19 +383,133 @@ if (dom.insetOpacitySlider) {
 
 }
 
-function getIndex(id) {
-  return INSETS.findIndex((m) => m.id === id);
+function setUiHidden(hidden) {
+  const toolbar = dom?.viewerToolbarEl || document.querySelector(".viewer-toolbar");
+  const statusEl = dom?.statusEl;
+  if (!toolbar || !statusEl) return;
+
+  toolbar.classList.toggle("ui-hidden", !!hidden);
+  statusEl.classList.toggle("ui-hidden", !!hidden);
 }
 
+function normalizeInsetSchemeUrl(url) {
+  if (!url) return url;
+
+  const s = String(url);
+  const isAbsolute =
+    /^https?:\/\//i.test(s) ||
+    s.startsWith("/") ||
+    s.startsWith("data:");
+
+  return isAbsolute
+    ? s
+    : `https://api.apparchi.ru/?path=${encodeURIComponent(s)}`;
+}
+
+function getInsetCapabilities(meta) {
+  return {
+    has3d: !!(meta && (meta.sourcePath || meta.sourceId) && meta.id !== "inset_0"),
+    hasScheme: Array.isArray(meta?.schemes) && meta.schemes.length > 0,
+    hasVideo: Array.isArray(meta?.video) && meta.video.length > 0
+  };
+}
+
+function chooseStartView(meta) {
+  const { has3d, hasScheme, hasVideo } = getInsetCapabilities(meta);
+  if (has3d) return "3d";
+  if (hasScheme) return "scheme";
+  if (hasVideo) return "video";
+  return "3d";
+}
+
+function configureViewTabsForInset(meta) {
+  currentMeta = meta;
+
+  const { has3d, hasScheme, hasVideo } = getInsetCapabilities(meta);
+
+  document.body.classList.toggle("inset-has-3d", has3d);
+  document.body.classList.remove("inset-no-tabs");
+
+  if (dom.tab3dBtn) {
+    dom.tab3dBtn.style.display = has3d ? "" : "none";
+    dom.tab3dBtn.classList.toggle("disabled", !has3d);
+  }
+
+  if (dom.tabSchemeBtn) {
+    dom.tabSchemeBtn.style.display = hasScheme ? "" : "none";
+    dom.tabSchemeBtn.classList.toggle("disabled", !hasScheme);
+  }
+
+  if (dom.tabVideoBtn) {
+    dom.tabVideoBtn.style.display = hasVideo ? "" : "none";
+    dom.tabVideoBtn.classList.toggle("disabled", !hasVideo);
+  }
+
+  setSchemeImages(
+    hasScheme ? meta.schemes.map(normalizeInsetSchemeUrl) : []
+  );
+
+  setVideoList(
+    hasVideo ? meta.video : []
+  );
+}
+
+function setViewMode(mode) {
+  activeView = mode;
+
+  if (dom.tab3dBtn) dom.tab3dBtn.classList.toggle("active", mode === "3d");
+  if (dom.tabSchemeBtn) dom.tabSchemeBtn.classList.toggle("active", mode === "scheme");
+  if (dom.tabVideoBtn) dom.tabVideoBtn.classList.toggle("active", mode === "video");
+
+  if (dom.schemeOverlayEl) {
+    const isScheme = mode === "scheme";
+    dom.schemeOverlayEl.style.display = isScheme ? "flex" : "none";
+    if (isScheme) activateScheme();
+    else deactivateScheme();
+  }
+
+  if (dom.videoOverlayEl) {
+    const isVideo = mode === "video";
+    dom.videoOverlayEl.style.display = isVideo ? "flex" : "none";
+
+    if (isVideo) {
+      activateVideo();
+    } else {
+      deactivateVideo();
+      document.body.classList.remove("video-playing");
+    }
+  }
+
+  if (mode !== "scheme") {
+    setUiHidden(false);
+  }
+}
 export function showGallery() {
   const { galleryEl, viewerWrapperEl, statusEl } = dom;
+
+  deactivateScheme();
+  deactivateVideo();
+
+  if (dom?.schemeOverlayEl) dom.schemeOverlayEl.style.display = "none";
+  if (dom?.videoOverlayEl) dom.videoOverlayEl.style.display = "none";
+
+  document.body.classList.remove("video-playing");
+  document.body.classList.remove("inset-has-3d");
+  document.body.classList.remove("inset-no-tabs");
+
   galleryEl?.classList.remove("hidden");
   viewerWrapperEl?.classList.remove("visible");
+
   if (statusEl) statusEl.textContent = "";
+
   currentId = null;
+  currentMeta = null;
+  activeView = "3d";
+
   exitInsetMode();
+
   controlledMaterials = [];
-currentOpacity = 1;
+  currentOpacity = 1;
   sectionMaterials = [];
 }
 
@@ -343,14 +521,21 @@ export function openById(id) {
   }
 
 currentId = id;
+currentMeta = meta;
 enterInsetMode();
 
 // ✅ новый токен загрузки (всё, что придёт со старым токеном — игнорим)
 const mySeq = ++insetLoadSeq;
 
-// ✅ сразу чистим CAD от предыдущей врезки, чтобы не "мигало" старым
+// ✅ сразу чистим CAD/контуры/оверлеи от предыдущей врезки
 clearCadOverlay();
-clearSectionEdgesOverlay();  
+clearSectionEdgesOverlay();
+deactivateScheme();
+deactivateVideo();
+
+if (dom?.schemeOverlayEl) dom.schemeOverlayEl.style.display = "none";
+if (dom?.videoOverlayEl) dom.videoOverlayEl.style.display = "none";
+document.body.classList.remove("video-playing");
 
 // ✅ показываем viewer
 dom.galleryEl?.classList.add("hidden");
@@ -358,6 +543,28 @@ dom.viewerWrapperEl?.classList.add("visible");
 
 // ✅ подпись
 if (dom.modelLabelEl) dom.modelLabelEl.textContent = meta.name;
+
+// ✅ настраиваем вкладки
+configureViewTabsForInset(meta);
+const startView = chooseStartView(meta);
+const { has3d } = getInsetCapabilities(meta);
+
+// ✅ если у врезки нет 3D (нулевая карточка) — модель не грузим
+if (!has3d) {
+  controlledMaterials = [];
+  sectionMaterials = [];
+
+  setInsetBlendState(0, []);
+  setInsetSectionBlendState(0.5, []);
+  setOutlineExcludedMaterials([]);
+  setCadAlpha(0);
+  setSectionEdgesAlpha(0);
+
+  hideLoading();
+  setStatus("");
+  setViewMode(startView);
+  return;
+}
 
 // ✅ загрузка
 showLoading(`Загрузка: ${meta.name}`);
@@ -432,6 +639,7 @@ setSectionEdgesAlpha(edgeAlpha);
     }
 
     hideLoading();
+    setViewMode(startView);
 
   })
 
