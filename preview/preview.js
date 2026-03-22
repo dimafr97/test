@@ -13,7 +13,10 @@ import {
   setPreviewSectionBlend,
   setPreviewOutlineEnabled,
   setPreviewCadOverlay,
-  clearPreviewCadOverlay
+  clearPreviewCadOverlay,
+  setPreviewOutlineExcludedMaterials,
+  setPreviewSectionEdgesOverlay,
+  setPreviewSectionEdgesAlpha
 } from "./threePreview.js";
 
 const elWrap = document.getElementById("wrap");
@@ -70,15 +73,30 @@ function hideInsetPointNodes(root) {
   });
 }
 
+function getSectionNameSets(meta) {
+  const primary = Array.isArray(meta?.primarySectionMaterialNames)
+    ? meta.primarySectionMaterialNames.map(String)
+    : (
+        Array.isArray(meta?.sectionMaterialNames)
+          ? meta.sectionMaterialNames.map(String)
+          : []
+      );
+
+  const auxiliary = Array.isArray(meta?.auxSectionMaterialNames)
+    ? meta.auxSectionMaterialNames.map(String)
+    : [];
+
+  const all = Array.from(new Set([...primary, ...auxiliary]));
+
+  return { primary, auxiliary, all };
+}
+
 // как во врезках: плоские цвета/настройка сечений
 function applyInsetColors(root, meta) {
   if (!root || !meta) return;
 
   const colors = meta.materialColors || {};
-  const sectionList =
-    Array.isArray(meta.sectionMaterialNames) && meta.sectionMaterialNames.length
-      ? meta.sectionMaterialNames
-      : ["3", "4"];
+  const { primary, auxiliary, all } = getSectionNameSets(meta);
 
   root.traverse((obj) => {
     if (!obj.isMesh) return;
@@ -89,10 +107,12 @@ function applyInsetColors(root, meta) {
       if (!m) continue;
 
       const key = String(m.name);
-      const isSection = sectionList.includes(key);
+      const isPrimary = primary.includes(key);
+      const isAuxiliary = auxiliary.includes(key);
+      const isAnySection = all.includes(key);
       const hex = colors[key];
 
-      if (!isSection && !hex) continue;
+      if (!isAnySection && !hex) continue;
 
       if (hex && m.color) m.color.set(hex);
 
@@ -101,7 +121,8 @@ function applyInsetColors(root, meta) {
       if ("metalness" in m) m.metalness = 0;
       if ("roughness" in m) m.roughness = 1;
 
-      if (isSection) {
+      // Основные сечения: заливка + контур
+      if (isPrimary) {
         m.transparent = true;
         m.opacity = 0.6;
         m.depthWrite = false;
@@ -115,8 +136,27 @@ function applyInsetColors(root, meta) {
 
         m.blending = THREE.NormalBlending;
 
-        const idx = sectionList.indexOf(key);
+        const idx = primary.indexOf(key);
         obj.renderOrder = 20 + (idx >= 0 ? idx : 0);
+      }
+
+      // Вспомогательные: только контур
+      if (isAuxiliary) {
+        m.transparent = true;
+        m.opacity = 0.0;
+        m.depthWrite = false;
+        m.depthTest = true;
+
+        m.forceSinglePass = true;
+
+        m.polygonOffset = true;
+        m.polygonOffsetFactor = 1;
+        m.polygonOffsetUnits = 1;
+
+        m.blending = THREE.NormalBlending;
+
+        const idx = auxiliary.indexOf(key);
+        obj.renderOrder = 40 + (idx >= 0 ? idx : 0);
       }
 
       m.needsUpdate = true;
@@ -222,17 +262,39 @@ async function loadSelected() {
 
     setPreviewModel(three, root);
 
-    // section materials для 2-pass blend (как в приложении, но только по сечениям)
+    // section materials / outline exclusion / colored edges — как во врезках
     let sectionMaterials = [];
-    const secNames = Array.isArray(meta.sectionMaterialNames) ? meta.sectionMaterialNames : [];
-    for (const n of secNames) {
+    let outlineExcluded = [];
+
+    const { primary, all } = getSectionNameSets(meta);
+
+    // Только основные сечения участвуют в заливке/section-blend
+    for (const n of primary) {
       sectionMaterials.push(...collectMaterialsByName(root, n));
     }
     sectionMaterials = Array.from(new Set(sectionMaterials));
 
+    // Все сечения исключаем из white outline
+    for (const n of all) {
+      outlineExcluded.push(...collectMaterialsByName(root, n));
+    }
+    outlineExcluded = Array.from(new Set(outlineExcluded));
+
     setPreviewSectionMaterials(three, sectionMaterials);
     setPreviewSectionBlend(three, 0.5);
     setPreviewOutlineEnabled(three, true);
+    setPreviewOutlineExcludedMaterials(three, outlineExcluded);
+
+    setPreviewSectionEdgesOverlay(
+      three,
+      root,
+      all,
+      meta.materialColors || {}
+    );
+
+    // В генераторе у нас тело сразу полупрозрачное (0.5),
+    // значит контуры сечений должны быть уже видимы
+    setPreviewSectionEdgesAlpha(three, 1);
 
     // CAD overlay
     clearPreviewCadOverlay(three);
