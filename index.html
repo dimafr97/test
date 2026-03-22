@@ -547,14 +547,8 @@ body.video-playing .video-card.active video { /* ADDED */
   display: block;
 }
       
-/* ✅ Режим "Врезки": скрываем вкладки (3D/Построение/Видео) и оверлеи */
-body.inset-mode .viewer-tabs-row {
-  display: none !important;
-}
-
-/* В режиме врезок схемы/видео не должны показываться даже случайно */
-body.inset-mode #schemeOverlay,
-body.inset-mode #videoOverlay {
+/* В режиме врезок вкладки и оверлеи управляются JS */
+body.inset-mode.inset-no-tabs .viewer-tabs-row {
   display: none !important;
 }
 /* ✅ Breadcrumb всегда видимый поверх header и не схлопывается */
@@ -591,9 +585,13 @@ body.inset-mode #videoOverlay {
   text-align: center;
 }
 
-/* ✅ Ползунок виден только в режиме "Врезки" */
-body.inset-mode #insetOpacityRow {
+/* Ползунок виден только там, где у врезки реально есть 3D */
+body.inset-mode.inset-has-3d #insetOpacityRow {
   display: flex !important;
+}
+
+body.inset-mode:not(.inset-has-3d) #insetOpacityRow {
+  display: none !important;
 }
 
 /* Лёгкий стиль для range, чтобы выглядел аккуратно */
