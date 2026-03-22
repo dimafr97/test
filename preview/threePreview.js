@@ -61,9 +61,13 @@ return {
   currentModel: null,
   size,
 
+  bodyMaterials: [],
   sectionMaterials: [],
   outlineExcludedMaterials: [],
+
+  bodyBlend: 0.0,
   sectionBlend: 0.5,
+
   outlineEnabled: true,
   outlineThicknessPx: 2.0,
 
@@ -73,8 +77,10 @@ return {
   sectionEdgesAlpha: 0,
   rtSE: null,
 
-  rtBase: null,
-  rtSec: null,
+  rtA: null,
+  rtB: null,
+  rtC: null,
+  rtD: null,
   rtN: null,
   postScene: null,
   postCam: null,
@@ -95,15 +101,24 @@ export function resizePreview(three, container, size) {
 
   disposePreviewTargets(three);
   ensurePreviewResources(three);
-  // 🔥 обновляем resolution для всех линий
-for (const obj of three.sectionEdgesMeshes) {
-  if (obj.material?.resolution) {
-    obj.material.resolution.set(
-      three.renderer.domElement.width,
-      three.renderer.domElement.height
-    );
+
+  for (const obj of three.sectionEdgesMeshes) {
+    if (obj.material?.resolution) {
+      obj.material.resolution.set(
+        three.renderer.domElement.width,
+        three.renderer.domElement.height
+      );
+    }
   }
-}
+
+  for (const obj of three.cadGroup.children) {
+    if (obj.material?.resolution) {
+      obj.material.resolution.set(
+        three.renderer.domElement.width,
+        three.renderer.domElement.height
+      );
+    }
+  }
 }
 
 export function setPreviewModel(three, root) {
@@ -133,6 +148,15 @@ export function setPreviewModel(three, root) {
 
 export function setPreviewSectionMaterials(three, materials) {
   three.sectionMaterials = Array.isArray(materials) ? materials : [];
+}
+
+export function setPreviewBodyMaterials(three, materials) {
+  three.bodyMaterials = Array.isArray(materials) ? materials : [];
+}
+
+export function setPreviewBodyBlend(three, factor01) {
+  const v = Number(factor01);
+  three.bodyBlend = Number.isFinite(v) ? THREE.MathUtils.clamp(v, 0, 1) : 0.0;
 }
 
 export function setPreviewSectionBlend(three, factor01) {
@@ -179,7 +203,7 @@ export function renderPreview(three) {
   const camera = three.camera;
   const scene = three.scene;
 
-  const saveStates = (mats) => {
+  function saveStates(mats) {
     const saved = [];
     for (const m of mats) {
       if (!m) continue;
@@ -192,9 +216,9 @@ export function renderPreview(three) {
       });
     }
     return saved;
-  };
+  }
 
-  const applyOpaque = (mats) => {
+  function applyOpaque(mats) {
     for (const m of mats) {
       if (!m) continue;
       m.transparent = false;
@@ -203,9 +227,9 @@ export function renderPreview(three) {
       m.depthTest = true;
       m.needsUpdate = true;
     }
-  };
+  }
 
-  const restoreStates = (saved) => {
+  function restoreStates(saved) {
     for (const s of saved) {
       const m = s.m;
       m.transparent = s.transparent;
@@ -214,24 +238,45 @@ export function renderPreview(three) {
       m.depthTest = s.depthTest;
       m.needsUpdate = true;
     }
-  };
+  }
 
+  const savedBody = saveStates(three.bodyMaterials);
   const savedSec = saveStates(three.sectionMaterials);
 
   // T00: body semi + sec semi
-  renderer.setRenderTarget(three.rtBase);
+  renderer.setRenderTarget(three.rtA);
   renderer.setClearColor(0x000000, 0);
   renderer.clear(true, true, true);
   renderer.render(scene, camera);
 
+  // T10: body opaque + sec semi
+  applyOpaque(three.bodyMaterials);
+  renderer.setRenderTarget(three.rtB);
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear(true, true, true);
+  renderer.render(scene, camera);
+  restoreStates(savedBody);
+
   // T01: body semi + sec opaque
   applyOpaque(three.sectionMaterials);
-  renderer.setRenderTarget(three.rtSec);
+  renderer.setRenderTarget(three.rtC);
   renderer.setClearColor(0x000000, 0);
   renderer.clear(true, true, true);
   renderer.render(scene, camera);
   restoreStates(savedSec);
-    // Colored section edges
+
+  // T11: body opaque + sec opaque
+  applyOpaque(three.bodyMaterials);
+  applyOpaque(three.sectionMaterials);
+  renderer.setRenderTarget(three.rtD);
+  renderer.setClearColor(0x000000, 0);
+  renderer.clear(true, true, true);
+  renderer.render(scene, camera);
+
+  restoreStates(savedBody);
+  restoreStates(savedSec);
+
+  // Colored section edges
   renderer.setRenderTarget(three.rtSE);
   renderer.setClearColor(0x000000, 0);
   renderer.clear(true, true, true);
@@ -240,7 +285,7 @@ export function renderPreview(three) {
     renderer.render(three.sectionEdgesScene, camera);
   }
 
-  // Normals + depth for outline, while hiding sections (как в основном приложении)
+  // Normals + depth for outline, while hiding sections
   if (three.outlineEnabled) {
     const hiddenSections = [];
     if (three.currentModel && Array.isArray(three.outlineExcludedMaterials) && three.outlineExcludedMaterials.length) {
@@ -271,25 +316,29 @@ export function renderPreview(three) {
     for (const obj of hiddenSections) obj.visible = true;
   }
 
-  // Final composite to transparent canvas
+  // Final composite
   renderer.setRenderTarget(null);
   renderer.setClearColor(0x000000, 0);
   renderer.clear(true, true, true);
 
   const mat = three.postQuad.material;
-  mat.uniforms.tBase.value = three.rtBase.texture;
-  mat.uniforms.tSecOpaque.value = three.rtSec.texture;
+  mat.uniforms.t00.value = three.rtA.texture;
+  mat.uniforms.t10.value = three.rtB.texture;
+  mat.uniforms.t01.value = three.rtC.texture;
+  mat.uniforms.t11.value = three.rtD.texture;
   mat.uniforms.tSE.value = three.rtSE ? three.rtSE.texture : null;
   mat.uniforms.tN.value = three.outlineEnabled ? three.rtN.texture : null;
   mat.uniforms.tDepth.value = three.outlineEnabled ? three.rtN.depthTexture : null;
+
   const k = Math.max(0.5, Number(three.outlineThicknessPx) || 2.0);
   mat.uniforms.uTexel.value.set(k / three.rtN.width, k / three.rtN.height);
+  mat.uniforms.uBodyMix.value = three.bodyBlend;
   mat.uniforms.uSecMix.value = three.sectionBlend;
   mat.uniforms.uOutlineOn.value = three.outlineEnabled ? 1.0 : 0.0;
 
   renderer.render(three.postScene, three.postCam);
 
-  // CAD поверх финального кадра
+  // CAD overlay on top
   if (three.cadScene && three.cadGroup && three.cadGroup.children.length) {
     const prevAutoClear = renderer.autoClear;
     renderer.autoClear = false;
@@ -446,12 +495,17 @@ function buildPreviewSectionEdges(three, root, sectionMaterialNames = [], materi
 }
 
 function disposePreviewTargets(three) {
-  three.rtBase?.dispose?.();
-  three.rtSec?.dispose?.();
+  three.rtA?.dispose?.();
+  three.rtB?.dispose?.();
+  three.rtC?.dispose?.();
+  three.rtD?.dispose?.();
   three.rtN?.dispose?.();
   three.rtSE?.dispose?.();
-  three.rtBase = null;
-  three.rtSec = null;
+
+  three.rtA = null;
+  three.rtB = null;
+  three.rtC = null;
+  three.rtD = null;
   three.rtN = null;
   three.rtSE = null;
 }
@@ -472,6 +526,172 @@ function ensurePreviewResources(three) {
     depthBuffer: true,
     stencilBuffer: false
   };
+
+  if (!three.rtA || three.rtA.width !== w || three.rtA.height !== h) {
+    three.rtA?.dispose?.();
+    three.rtA = new THREE.WebGLRenderTarget(w, h, params);
+  }
+
+  if (!three.rtB || three.rtB.width !== w || three.rtB.height !== h) {
+    three.rtB?.dispose?.();
+    three.rtB = new THREE.WebGLRenderTarget(w, h, params);
+  }
+
+  if (!three.rtC || three.rtC.width !== w || three.rtC.height !== h) {
+    three.rtC?.dispose?.();
+    three.rtC = new THREE.WebGLRenderTarget(w, h, params);
+  }
+
+  if (!three.rtD || three.rtD.width !== w || three.rtD.height !== h) {
+    three.rtD?.dispose?.();
+    three.rtD = new THREE.WebGLRenderTarget(w, h, params);
+  }
+
+  if (!three.rtN || three.rtN.width !== w || three.rtN.height !== h) {
+    three.rtN?.dispose?.();
+    three.rtN = new THREE.WebGLRenderTarget(w, h, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      depthBuffer: true,
+      stencilBuffer: false
+    });
+
+    three.rtN.depthTexture = new THREE.DepthTexture(w, h);
+    three.rtN.depthTexture.type = THREE.UnsignedShortType;
+  }
+
+  if (!three.rtSE || three.rtSE.width !== w || three.rtSE.height !== h) {
+    three.rtSE?.dispose?.();
+    three.rtSE = new THREE.WebGLRenderTarget(w, h, {
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      format: THREE.RGBAFormat,
+      depthBuffer: false,
+      stencilBuffer: false
+    });
+  }
+
+  // Генератор: максимум качества, без оглядки на производительность
+  three.rtA.samples = 4;
+  three.rtB.samples = 4;
+  three.rtC.samples = 4;
+  three.rtD.samples = 4;
+  three.rtN.samples = 4;
+  three.rtSE.samples = 4;
+
+  if (!three.postScene) {
+    three.postScene = new THREE.Scene();
+    three.postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        t00: { value: null },
+        t10: { value: null },
+        t01: { value: null },
+        t11: { value: null },
+        tSE: { value: null },
+        tN: { value: null },
+        tDepth: { value: null },
+        uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) },
+        uOutlineOn: { value: 0.0 },
+        uDepthK: { value: 1.0 },
+        uNormK: { value: 1.0 },
+        uBodyMix: { value: 0.0 },
+        uSecMix: { value: 0.5 }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position.xy, 0.0, 1.0);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+
+        varying vec2 vUv;
+
+        uniform sampler2D t00;
+        uniform sampler2D t10;
+        uniform sampler2D t01;
+        uniform sampler2D t11;
+        uniform sampler2D tSE;
+        uniform sampler2D tN;
+        uniform sampler2D tDepth;
+        uniform vec2 uTexel;
+        uniform float uOutlineOn;
+        uniform float uDepthK;
+        uniform float uNormK;
+        uniform float uBodyMix;
+        uniform float uSecMix;
+
+        float edgeDepth(vec2 uv) {
+          float d = texture2D(tDepth, uv).r;
+          float dR = texture2D(tDepth, uv + vec2(uTexel.x, 0.0)).r;
+          float dU = texture2D(tDepth, uv + vec2(0.0, uTexel.y)).r;
+          return max(abs(d - dR), abs(d - dU));
+        }
+
+        float edgeNormal(vec2 uv) {
+          vec3 n  = texture2D(tN, uv).xyz * 2.0 - 1.0;
+          vec3 nR = texture2D(tN, uv + vec2(uTexel.x, 0.0)).xyz * 2.0 - 1.0;
+          vec3 nU = texture2D(tN, uv + vec2(0.0, uTexel.y)).xyz * 2.0 - 1.0;
+          return max(length(n - nR), length(n - nU));
+        }
+
+        vec3 toSRGB(vec3 c) {
+          return pow(max(c, 0.0), vec3(1.0 / 2.2));
+        }
+
+        void main() {
+          vec4 c00 = texture2D(t00, vUv);
+          vec4 c10 = texture2D(t10, vUv);
+          vec4 c01 = texture2D(t01, vUv);
+          vec4 c11 = texture2D(t11, vUv);
+
+          float b = clamp(uBodyMix, 0.0, 1.0);
+          float s = clamp(uSecMix, 0.0, 1.0);
+
+          vec4 semiSec = mix(c00, c10, b);
+          vec4 opaSec  = mix(c01, c11, b);
+
+          vec4 outC = mix(semiSec, opaSec, s);
+          vec3 col = outC.rgb;
+          float outA = outC.a;
+
+          vec4 secEdge = texture2D(tSE, vUv);
+          float secA = clamp(secEdge.a, 0.0, 1.0);
+          col = mix(col, secEdge.rgb, secA);
+          outA = max(outA, secA);
+
+          if (uOutlineOn > 0.5) {
+            float ed = edgeDepth(vUv) * uDepthK;
+            float en = edgeNormal(vUv) * uNormK;
+
+            float e = max(
+              smoothstep(0.002, 0.01, ed),
+              smoothstep(0.10, 0.35, en)
+            );
+
+            col = mix(col, vec3(1.0), e);
+            outA = max(outA, e);
+          }
+
+          gl_FragColor = vec4(toSRGB(col), outA);
+        }
+      `,
+      depthTest: false,
+      depthWrite: false,
+      toneMapped: false,
+      transparent: true
+    });
+
+    const geo = new THREE.PlaneGeometry(2, 2);
+    three.postQuad = new THREE.Mesh(geo, mat);
+    three.postScene.add(three.postQuad);
+  }
+}
 
   if (!three.rtBase || three.rtBase.width !== w || three.rtBase.height !== h) {
     three.rtBase?.dispose?.();
@@ -753,21 +973,25 @@ export function setPreviewCadOverlay(three, cadSpec, opts = {}) {
     }
 
     if (linePos.length) {
-      const lineGeo = new THREE.BufferGeometry();
-      lineGeo.setAttribute(
-        "position",
-        new THREE.BufferAttribute(new Float32Array(linePos), 3)
-      );
+      const segGeom = new LineSegmentsGeometry();
+      segGeom.setPositions(new Float32Array(linePos));
 
-      const lineMat = new THREE.LineBasicMaterial({
-        color,
+      const lineMat = new LineMaterial({
+        color: new THREE.Color(color),
+        linewidth: 1.5,
+        transparent: opacity < 0.999,
+        opacity,
         depthTest: false,
         depthWrite: false,
-        transparent: opacity < 0.999,
-        opacity
+        dashed: false
       });
 
-      const linesObj = new THREE.LineSegments(lineGeo, lineMat);
+      lineMat.resolution.set(
+        three.renderer.domElement.width,
+        three.renderer.domElement.height
+      );
+
+      const linesObj = new LineSegments2(segGeom, lineMat);
       linesObj.renderOrder = 1999;
       three.cadGroup.add(linesObj);
     }
