@@ -177,7 +177,9 @@ function getCurrentModelMeta() {
 
 function getModelCapabilities(meta) {
   return {
-    has3d: !!(meta && meta.url),
+    // Нулевая карточка arch_0 — без 3D.
+    // Все остальные архитектурные модели считаем 3D-моделями.
+    has3d: !!(meta && meta.id !== "arch_0"),
     hasScheme: Array.isArray(meta?.schemes) && meta.schemes.length > 0,
     hasVideo: Array.isArray(meta?.video) && meta.video.length > 0
   };
