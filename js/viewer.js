@@ -27,11 +27,17 @@ export function initViewer(refs) {
     dom.viewerToolbarEl = document.querySelector(".viewer-toolbar");
   }
 
+    if (!dom.schemePrevBtn) dom.schemePrevBtn = document.getElementById("schemePrevBtn");
+  if (!dom.schemeNextBtn) dom.schemeNextBtn = document.getElementById("schemeNextBtn");
+
   initThree(dom.canvasEl);
 
   initScheme({
     overlayEl: dom.schemeOverlayEl,
     imgEl: dom.schemeImgEl,
+    prevBtnEl: dom.schemePrevBtn,
+    nextBtnEl: dom.schemeNextBtn,
+    context: "arch",
     onUiVisibility: (hidden) => {
       if (activeView !== "scheme") {
         setUiHidden(false);
@@ -40,7 +46,6 @@ export function initViewer(refs) {
       setUiHidden(hidden);
     }
   });
-
   // VIDEO init (важно: refs совпадают с новым video.js)
   initVideo(
     {
