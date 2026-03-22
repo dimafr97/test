@@ -69,7 +69,7 @@ return {
   sectionBlend: 0.5,
 
   outlineEnabled: true,
-  outlineThicknessPx: 2.0,
+  outlineThicknessPx: 3.0,
 
   sectionEdgesScene,
   sectionEdgesGroup,
@@ -460,7 +460,7 @@ function buildPreviewSectionEdges(three, root, sectionMaterialNames = [], materi
 
       const lineMat = new LineMaterial({
         color: new THREE.Color(colorValue),
-        linewidth: 2.0,
+        linewidth: 3.5,
         transparent: true,
         opacity: three.sectionEdgesAlpha,
         depthTest: false,
@@ -837,7 +837,7 @@ export function setPreviewCadOverlay(three, cadSpec, opts = {}) {
 
       const lineMat = new LineMaterial({
         color: new THREE.Color(color),
-        linewidth: 1.5,
+        linewidth: 3.0,
         transparent: opacity < 0.999,
         opacity,
         depthTest: false,
