@@ -175,6 +175,11 @@ function getCurrentModelMeta() {
   return getModelMeta(currentModelId);
 }
 
+function setCanvasInteractionEnabled(enabled) {
+  if (!dom?.canvasEl) return;
+  dom.canvasEl.style.pointerEvents = enabled ? "auto" : "none";
+}
+
 function getModelCapabilities(meta) {
   return {
     // Нулевая карточка arch_0 — без 3D.
