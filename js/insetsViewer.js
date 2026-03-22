@@ -305,27 +305,46 @@ function buildCadSpecFromModel(root, cadMeta) {
 function setupUiHandlers() {
   const { prevBtn, nextBtn, backBtn } = dom;
 
-  // Prev / Next ходят по INSETS
-  prevBtn?.addEventListener("click", () => {
+  // Prev / Next / Галерея для Врезок:
+  // вешаем в capture-режиме и глушим событие,
+  // чтобы архитектурный viewer не вмешивался
+  prevBtn?.addEventListener("click", (e) => {
+    if (!document.body.classList.contains("inset-mode")) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!currentId) return;
     const idx = getIndex(currentId);
     if (idx < 0) return;
+
     const nextIdx = (idx - 1 + INSETS.length) % INSETS.length;
     openById(INSETS[nextIdx].id);
-  });
+  }, true);
 
-  nextBtn?.addEventListener("click", () => {
+  nextBtn?.addEventListener("click", (e) => {
+    if (!document.body.classList.contains("inset-mode")) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!currentId) return;
     const idx = getIndex(currentId);
     if (idx < 0) return;
+
     const nextIdx = (idx + 1) % INSETS.length;
     openById(INSETS[nextIdx].id);
-  });
+  }, true);
 
   // Кнопка "Галерея" возвращает в галерею
-  backBtn?.addEventListener("click", () => {
+  backBtn?.addEventListener("click", (e) => {
+    if (!document.body.classList.contains("inset-mode")) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
     showGallery();
-  });
+  }, true);
 
   dom.tab3dBtn?.addEventListener("click", () => {
     if (!currentMeta) return;
