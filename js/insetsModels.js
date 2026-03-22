@@ -5,6 +5,24 @@
 // models.js сам сможет загрузить source-модели по sourcePath (без правок models.js).
 
 const RAW_INSETS = [
+
+  {
+  id: "inset_0",
+  name: "Общая теория / Введение",
+  desc: "Схемы и видео",
+  thumbLetter: "0",
+
+  // Для нулевой врезки 3D нет, поэтому sourcePath НЕ указываем
+  schemes: [
+    "textures/insets/0/s1.jpg",
+    "textures/insets/0/s2.jpg"
+  ],
+
+  video: [
+    "videos/insets/0/v1.mp4"
+  ]
+},
+  
 {
   id: "inset_1",
   name: "Куб и конус",
