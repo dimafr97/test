@@ -30,13 +30,17 @@ export function initPreviewThree(container, size) {
 
   const camera = new THREE.PerspectiveCamera(25, 1, 0.1, 50);
 
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-    preserveDrawingBuffer: true
-  });
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  alpha: true,
+  preserveDrawingBuffer: true,
+  powerPreference: "high-performance"
+});
 
-  renderer.setPixelRatio(window.devicePixelRatio);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+
+  renderer.setPixelRatio(2); // 🔥 фиксированное качество (лучше и стабильнее)
   renderer.setClearColor(0x000000, 0);
 
   container.innerHTML = "";
@@ -91,6 +95,15 @@ export function resizePreview(three, container, size) {
 
   disposePreviewTargets(three);
   ensurePreviewResources(three);
+  // 🔥 обновляем resolution для всех линий
+for (const obj of three.sectionEdgesMeshes) {
+  if (obj.material?.resolution) {
+    obj.material.resolution.set(
+      three.renderer.domElement.width,
+      three.renderer.domElement.height
+    );
+  }
+}
 }
 
 export function setPreviewModel(three, root) {
@@ -411,6 +424,8 @@ function buildPreviewSectionEdges(three, root, sectionMaterialNames = [], materi
         three.renderer.domElement.height
       );
 
+      lineMat.needsUpdate = true;
+
       const lines = new LineSegments2(wideGeom, lineMat);
       lines.matrixAutoUpdate = false;
       lines.frustumCulled = false;
@@ -566,11 +581,11 @@ function ensurePreviewResources(three) {
             float en = edgeNormal(vUv) * uNormK;
 
             float e = max(
-              smoothstep(0.002, 0.01, ed),
-              smoothstep(0.10, 0.35, en)
+smoothstep(0.0005, 0.004, ed),
+smoothstep(0.03, 0.15, en)
             );
 
-            col = mix(col, vec3(1.0), e);
+            col = mix(col, vec3(1.0), e * 0.7);
           }
 
           gl_FragColor = vec4(toSRGB(col), outC.a);
