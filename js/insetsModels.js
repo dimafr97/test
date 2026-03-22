@@ -14,13 +14,13 @@ const RAW_INSETS = [
 
   // Для нулевой врезки 3D нет, поэтому sourcePath НЕ указываем
   schemes: [
-    "textures/insets/0/s1.jpg",
-    "textures/insets/0/s2.jpg"
+    "textures/doric/s1.jpg",
+    "textures/doric/s2.jpg"
   ],
 
-  video: [
-    "videos/insets/0/v1.mp4"
-  ]
+video: [
+  `https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/doric/v1.mp4`
+],
 },
   
 {
@@ -28,6 +28,10 @@ const RAW_INSETS = [
   name: "Куб и конус",
   desc: "Врезка прямой плоскости в тело вращения",
   preview: "textures/1/preview.png",
+  schemes: [
+    "textures/doric/s1.jpg",
+    "textures/doric/s2.jpg"
+  ],
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/1.1.gltf",
