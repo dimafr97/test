@@ -316,6 +316,7 @@ function setBreadcrumbSection(title) {
 // маленький хелпер: показать список карточек в #gallery
 function showMainMenu() {
   currentScreen = "main";
+  insetViewer.showGallery(); // 🔥 СБРОС inset-mode и всего состояния
     setBreadcrumbVisible(false);
   setBreadcrumbSection("");
     setBrandVisible(true);
