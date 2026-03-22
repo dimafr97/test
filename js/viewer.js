@@ -143,6 +143,7 @@ function setupGlobalTouchBlock() {
     "touchmove",
     (e) => {
       if (!viewerWrapperEl || !viewerWrapperEl.classList.contains("visible")) return;
+      if (document.body.classList.contains("inset-mode")) return;
 
       // В режиме Видео и когда не playing — даём скролл списка
       if (activeView === "video" && !document.body.classList.contains("video-playing")) {
