@@ -88,6 +88,7 @@ export function initInsetsViewer(refs) {
 
 
   setupUiHandlers();
+  setupInset3dUiAutoHide();
 
   return {
     openById,
@@ -430,6 +431,64 @@ function setUiHidden(hidden) {
 
   toolbar.classList.toggle("ui-hidden", !!hidden);
   statusEl.classList.toggle("ui-hidden", !!hidden);
+}
+
+function setupInset3dUiAutoHide() {
+  const { canvasEl, viewerWrapperEl } = dom;
+  if (!canvasEl || !viewerWrapperEl) return;
+
+  let isDown = false;
+  let moved = false;
+  let startX = 0;
+  let startY = 0;
+
+  const MOVE_THRESHOLD = 6;
+
+  const isViewerVisible = () => viewerWrapperEl.classList.contains("visible");
+  const is3dActive = () => document.body.classList.contains("inset-mode") && activeView === "3d";
+
+  const getPoint = (e) => {
+    if (typeof e.clientX === "number") return { x: e.clientX, y: e.clientY };
+    const t = e.touches && e.touches[0];
+    return { x: t ? t.clientX : 0, y: t ? t.clientY : 0 };
+  };
+
+  const onDown = (e) => {
+    if (!isViewerVisible() || !is3dActive()) return;
+    isDown = true;
+    moved = false;
+    const p = getPoint(e);
+    startX = p.x;
+    startY = p.y;
+  };
+
+  const onMove = (e) => {
+    if (!isDown) return;
+    if (!isViewerVisible() || !is3dActive()) return;
+
+    const p = getPoint(e);
+    const dx = p.x - startX;
+    const dy = p.y - startY;
+
+    if (!moved && Math.hypot(dx, dy) >= MOVE_THRESHOLD) {
+      moved = true;
+      setUiHidden(true);
+    }
+  };
+
+  const onUp = () => {
+    if (!isViewerVisible() || !is3dActive()) return;
+
+    if (!moved) {
+      setUiHidden(false);
+    }
+
+    isDown = false;
+  };
+
+  canvasEl.addEventListener("pointerdown", onDown, { passive: true });
+  canvasEl.addEventListener("pointermove", onMove, { passive: true });
+  window.addEventListener("pointerup", onUp, { passive: true });
 }
 
 function normalizeInsetSchemeUrl(url) {
