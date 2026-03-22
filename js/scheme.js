@@ -29,6 +29,8 @@ let preloadedScheme = {
 
 let overlay = null;
 let img = null;
+let boundOverlay = null;
+let boundImg = null;
 
 let images = [];  // массив URL схем
 let activeIndex = 0;
@@ -92,14 +94,20 @@ export function initScheme({ overlayEl, imgEl, onUiVisibility }) {
   img.draggable = false;
 
   // На загрузку картинки — сброс трансформа
-  img.addEventListener("load", () => {
-    if (!active) return;
-    resetTransform();
-  });
+  if (boundImg !== img) {
+    img.addEventListener("load", () => {
+      if (!active) return;
+      resetTransform();
+    });
+    boundImg = img;
+  }
 
-  attachEvents();
+  // События жестов/кликов вешаем только один раз на тот же overlay
+  if (boundOverlay !== overlay) {
+    attachEvents();
+    boundOverlay = overlay;
+  }
 }
-
 /* ============================================================
    УСТАНОВКА СПИСКА ИЗОБРАЖЕНИЙ (m.schemes)
    ============================================================ */
