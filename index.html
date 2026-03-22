@@ -585,12 +585,13 @@ body.inset-mode.inset-no-tabs .viewer-tabs-row {
   text-align: center;
 }
 
-/* Ползунок виден только там, где у врезки реально есть 3D */
-body.inset-mode.inset-has-3d #insetOpacityRow {
+/* Ползунок виден только во Врезках, только если у карточки есть 3D,
+   и только когда активна вкладка 3D */
+body.inset-mode.inset-has-3d.inset-view-3d #insetOpacityRow {
   display: flex !important;
 }
 
-body.inset-mode:not(.inset-has-3d) #insetOpacityRow {
+body.inset-mode #insetOpacityRow {
   display: none !important;
 }
 
@@ -665,10 +666,6 @@ body.inset-mode:not(.inset-has-3d) #insetOpacityRow {
         </div>
 
         <!-- ✅ Ползунок прозрачности (только для Врезок) -->
-<div class="viewer-toolbar-row" id="insetOpacityRow" style="display:none; gap:10px; align-items:center;">
-  <div style="font-size:12px; opacity:.75; min-width:110px;">Прозрачность</div>
-  <input id="insetOpacitySlider" type="range" min="0" max="100" value="100" style="flex:1;">
-</div>
 
 
         <div class="viewer-toolbar-row viewer-tabs-row">
@@ -678,6 +675,10 @@ body.inset-mode:not(.inset-has-3d) #insetOpacityRow {
             <button class="btn tab-btn" id="tabVideo">Видео</button>
           </div>
         </div>
+        <div class="viewer-toolbar-row" id="insetOpacityRow" style="display:none; gap:10px; align-items:center;">
+  <div style="font-size:12px; opacity:.75; min-width:110px;">Прозрачность</div>
+  <input id="insetOpacitySlider" type="range" min="0" max="100" value="100" style="flex:1;">
+</div>
       </div>
 
       <div class="viewer-main">
