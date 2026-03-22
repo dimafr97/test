@@ -380,6 +380,7 @@ function setup3dUiAutoHide() {
   };
 
   const onDown = (e) => {
+    if (document.body.classList.contains("inset-mode")) return;
     if (!isViewerVisible() || !is3dActive()) return;
     isDown = true;
     moved = false;
@@ -389,6 +390,7 @@ function setup3dUiAutoHide() {
   };
 
   const onMove = (e) => {
+    if (document.body.classList.contains("inset-mode")) return;
     if (!isDown) return;
     if (!isViewerVisible() || !is3dActive()) return;
     const p = getPoint(e);
@@ -401,6 +403,7 @@ function setup3dUiAutoHide() {
   };
 
   const onUp = () => {
+    if (document.body.classList.contains("inset-mode")) return;
     if (!isViewerVisible() || !is3dActive()) return;
     if (!moved) setUiHidden(false);
     isDown = false;
