@@ -126,7 +126,11 @@ prevBtn.addEventListener("click", () => {
   idx = (idx - 1 + MODELS.length) % MODELS.length;
   openModelById(MODELS[idx].id);
 });
-  tab3dBtn.addEventListener("click", () => setViewMode("3d"));
+  tab3dBtn.addEventListener("click", () => {
+    const meta = getCurrentModelMeta();
+    if (!meta || !getModelCapabilities(meta).has3d) return;
+    setViewMode("3d");
+  });
 
   tabSchemeBtn.addEventListener("click", () => {
     const meta = getCurrentModelMeta();
@@ -171,6 +175,23 @@ function getCurrentModelMeta() {
   return getModelMeta(currentModelId);
 }
 
+function getModelCapabilities(meta) {
+  return {
+    has3d: !!(meta && meta.url),
+    hasScheme: Array.isArray(meta?.schemes) && meta.schemes.length > 0,
+    hasVideo: Array.isArray(meta?.video) && meta.video.length > 0
+  };
+}
+
+function chooseStartView(meta) {
+  const { has3d, hasScheme, hasVideo } = getModelCapabilities(meta);
+
+  if (has3d) return "3d";
+  if (hasScheme) return "scheme";
+  if (hasVideo) return "video";
+  return "3d";
+}
+
 function openModelById(modelId) {
   if (isInsetModeActive()) return; // ✅ во Врезках не открываем арх-модели
   const meta = getModelMeta(modelId);
@@ -185,6 +206,15 @@ function openModelById(modelId) {
   setUiHidden(false);
 
   configureViewTabsForModel(meta);
+
+  const { has3d } = getModelCapabilities(meta);
+  setCanvasInteractionEnabled(has3d && chooseStartView(meta) === "3d");
+
+  if (!has3d) {
+    hideLoading();
+    setStatus("");
+    return;
+  }
 
   startModelLoading(meta);
 }
@@ -227,22 +257,20 @@ function startModelLoading(meta) {
 function configureViewTabsForModel(meta) {
   const { tab3dBtn, tabSchemeBtn, tabVideoBtn } = dom;
 
-  const hasScheme = meta.schemes && meta.schemes.length > 0;
-  const hasVideo = meta.video && meta.video.length > 0;
+  const { has3d, hasScheme, hasVideo } = getModelCapabilities(meta);
 
-  // ✅ после режима Врезок обязательно полностью восстанавливаем вкладки
   if (tab3dBtn) {
-    tab3dBtn.style.display = "";
-    tab3dBtn.classList.remove("disabled");
+    tab3dBtn.style.display = has3d ? "" : "none";
+    tab3dBtn.classList.toggle("disabled", !has3d);
   }
 
   if (tabSchemeBtn) {
-    tabSchemeBtn.style.display = "";
+    tabSchemeBtn.style.display = hasScheme ? "" : "none";
     tabSchemeBtn.classList.toggle("disabled", !hasScheme);
   }
 
   if (tabVideoBtn) {
-    tabVideoBtn.style.display = "";
+    tabVideoBtn.style.display = hasVideo ? "" : "none";
     tabVideoBtn.classList.toggle("disabled", !hasVideo);
   }
 
@@ -258,8 +286,9 @@ function configureViewTabsForModel(meta) {
     setVideoList([]);
   }
 
-  setViewMode("3d");
+  setViewMode(chooseStartView(meta));
 }
+
 function setViewMode(mode) {
   activeView = mode;
 
