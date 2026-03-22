@@ -335,6 +335,38 @@
       pointer-events: auto;
     }
 
+      .scheme-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 26;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  backdrop-filter: blur(4px);
+}
+
+.scheme-nav-btn:active {
+  transform: translateY(-50%) scale(0.98);
+}
+
+.scheme-nav-btn.prev {
+  left: 12px;
+}
+
+.scheme-nav-btn.next {
+  right: 12px;
+}
+
     .alt-overlay video {
       max-width: 100%;
       max-height: 100%;
@@ -687,10 +719,11 @@ body.inset-mode #insetOpacityRow {
 <div id="watermark" class="watermark"></div>
 
 
-        <!-- СХЕМА -->
-        <div class="alt-overlay" id="schemeOverlay">
-          <img id="schemeImage" src="" alt="Схема построения" />
-        </div>
+<div class="alt-overlay" id="schemeOverlay">
+  <button class="scheme-nav-btn prev" id="schemePrevBtn" type="button" aria-label="Предыдущая схема">‹</button>
+  <img id="schemeImage" src="" alt="Схема построения" />
+  <button class="scheme-nav-btn next" id="schemeNextBtn" type="button" aria-label="Следующая схема">›</button>
+</div>
 
 <!-- ВИДЕО -->
 <div class="alt-overlay" id="videoOverlay">
