@@ -46,36 +46,7 @@ export function initInsetsViewer(refs) {
   if (!dom.videoListEl) dom.videoListEl = document.getElementById("videoList");
   if (!dom.videoEmptyEl) dom.videoEmptyEl = document.getElementById("videoEmpty");
 
-  initScheme({
-    overlayEl: dom.schemeOverlayEl,
-    imgEl: dom.schemeImgEl,
-    onUiVisibility: (hidden) => {
-      if (activeView !== "scheme") return;
-      setUiHidden(hidden);
-    }
-  });
 
-  initVideo(
-    {
-      overlayEl: dom.videoOverlayEl,
-      listEl: dom.videoListEl,
-      emptyEl: dom.videoEmptyEl,
-      toolbarEl: dom.viewerToolbarEl,
-      tab3dBtn: dom.tab3dBtn,
-      tabSchemeBtn: dom.tabSchemeBtn,
-      tabVideoBtn: dom.tabVideoBtn
-    },
-    {
-      onPlay: () => {
-        setUiHidden(false);
-        document.body.classList.add("video-playing");
-      },
-      onPause: () => {
-        setUiHidden(false);
-        document.body.classList.remove("video-playing");
-      }
-    }
-  );
 
   setupUiHandlers();
 
