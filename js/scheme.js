@@ -31,6 +31,9 @@ let overlay = null;
 let img = null;
 let boundOverlay = null;
 let boundImg = null;
+let prevBtn = null;
+let nextBtn = null;
+let navBound = false;
 
 let images = [];  // массив URL схем
 let activeIndex = 0;
@@ -68,7 +71,8 @@ let uiHidden = false;
 let uiShowTimer = null;
 
 // Callback в viewer.js
-let onUiVisibilityChange = null;
+let onUiVisibilityArch = null;
+let onUiVisibilityInset = null;
 
 // Текущий режим вкладки: активирована схема или нет
 let active = false;
@@ -78,10 +82,25 @@ let active = false;
    ИНИЦИАЛИЗАЦИЯ
    ============================================================ */
 
-export function initScheme({ overlayEl, imgEl, onUiVisibility }) {
+export function initScheme({
+  overlayEl,
+  imgEl,
+  onUiVisibility,
+  context = "arch",
+  prevBtnEl = null,
+  nextBtnEl = null
+}) {
   overlay = overlayEl;
   img = imgEl;
-  onUiVisibilityChange = onUiVisibility || null;
+
+  if (context === "inset") {
+    onUiVisibilityInset = onUiVisibility || null;
+  } else {
+    onUiVisibilityArch = onUiVisibility || null;
+  }
+
+  if (prevBtnEl) prevBtn = prevBtnEl;
+  if (nextBtnEl) nextBtn = nextBtnEl;
 
   if (!overlay || !img) {
     console.error("scheme.js: overlay/img not provided");
@@ -98,6 +117,7 @@ export function initScheme({ overlayEl, imgEl, onUiVisibility }) {
     img.addEventListener("load", () => {
       if (!active) return;
       resetTransform();
+      updateSchemeNavButtons();
     });
     boundImg = img;
   }
@@ -107,6 +127,25 @@ export function initScheme({ overlayEl, imgEl, onUiVisibility }) {
     attachEvents();
     boundOverlay = overlay;
   }
+
+  // Стрелки схем вешаем один раз
+  if (!navBound && prevBtn && nextBtn) {
+    prevBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showPrevScheme();
+    });
+
+    nextBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showNextScheme();
+    });
+
+    navBound = true;
+  }
+
+  updateSchemeNavButtons();
 }
 /* ============================================================
    УСТАНОВКА СПИСКА ИЗОБРАЖЕНИЙ (m.schemes)
@@ -115,6 +154,7 @@ export function initScheme({ overlayEl, imgEl, onUiVisibility }) {
 export async function setSchemeImages(urlList) {
   images = Array.isArray(urlList) ? urlList.slice() : [];
   activeIndex = 0;
+  updateSchemeNavButtons();
 
   if (!images.length || !img) return;
 
@@ -179,21 +219,23 @@ async function preloadScheme(index) {
 export function activateScheme() {
   active = true;
   resetTransform();
+  updateSchemeNavButtons();
 }
 
 export function deactivateScheme() {
   active = false;
   hideUi(false);
+  updateSchemeNavButtons();
 
   if (currentSchemeBlobUrl) {
     URL.revokeObjectURL(currentSchemeBlobUrl);
     currentSchemeBlobUrl = null;
   }
   if (preloadedScheme.blobUrl) {
-  URL.revokeObjectURL(preloadedScheme.blobUrl);
-  preloadedScheme.blobUrl = null;
-  preloadedScheme.index = null;
-}
+    URL.revokeObjectURL(preloadedScheme.blobUrl);
+    preloadedScheme.blobUrl = null;
+    preloadedScheme.index = null;
+  }
 }
 
 
@@ -335,9 +377,11 @@ perform();
 function hideUi(hidden) {
   uiHidden = hidden;
 
-  if (onUiVisibilityChange) {
-    onUiVisibilityChange(hidden);
-  }
+  const cb = document.body.classList.contains("inset-mode")
+    ? onUiVisibilityInset
+    : onUiVisibilityArch;
+
+  if (cb) cb(hidden);
 }
 
 function showUiTemporarily() {
@@ -358,7 +402,24 @@ function updateUiAutoHide() {
 /* ============================================================
    SWIPE BETWEEN IMAGES
    ============================================================ */
+function updateSchemeNavButtons() {
+  const visible = active && images.length > 1;
 
+  if (prevBtn) prevBtn.style.display = visible ? "flex" : "none";
+  if (nextBtn) nextBtn.style.display = visible ? "flex" : "none";
+}
+
+function showPrevScheme() {
+  if (!images.length || images.length <= 1) return;
+  activeIndex = (activeIndex - 1 + images.length) % images.length;
+  loadSchemeAtIndex(activeIndex);
+}
+
+function showNextScheme() {
+  if (!images.length || images.length <= 1) return;
+  activeIndex = (activeIndex + 1) % images.length;
+  loadSchemeAtIndex(activeIndex);
+}
 function handleSwipe() {
   if (images.length <= 1) return;
   if (userScale !== 1) return; // свайпы только на fit-масштабе
