@@ -45,12 +45,20 @@ export function initInsetsViewer(refs) {
   if (!dom.videoOverlayEl) dom.videoOverlayEl = document.getElementById("videoOverlay");
   if (!dom.videoListEl) dom.videoListEl = document.getElementById("videoList");
   if (!dom.videoEmptyEl) dom.videoEmptyEl = document.getElementById("videoEmpty");
+  if (!dom.schemePrevBtn) dom.schemePrevBtn = document.getElementById("schemePrevBtn");
+  if (!dom.schemeNextBtn) dom.schemeNextBtn = document.getElementById("schemeNextBtn");
 
-    initScheme({
+  initScheme({
     overlayEl: dom.schemeOverlayEl,
     imgEl: dom.schemeImgEl,
+    prevBtnEl: dom.schemePrevBtn,
+    nextBtnEl: dom.schemeNextBtn,
+    context: "inset",
     onUiVisibility: (hidden) => {
-      if (activeView !== "scheme") return;
+      if (activeView !== "scheme") {
+        setUiHidden(false);
+        return;
+      }
       setUiHidden(hidden);
     }
   });
