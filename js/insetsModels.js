@@ -238,14 +238,14 @@ cad: {
   preview: "textures/7/preview.png",
 
   // путь в защищённом API (после ?path=)
-  sourcePath: "models/7.gltf",
+  sourcePath: "models/7.1.gltf",
 
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
 // материалы-сечения
-primarySectionMaterialNames: ["3"],
-auxSectionMaterialNames: ["2", "4"],
+primarySectionMaterialNames: ["2", "3"],
+auxSectionMaterialNames: ["4"],
 
 
   // цвета сечений
