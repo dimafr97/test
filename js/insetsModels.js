@@ -434,6 +434,40 @@ cad: {
   ]
 }
 },
+  {
+  id: "inset_13",
+  name: "Пирамида и вертикальная призма",
+  desc: "Врезка наклонных плоскостей",
+  preview: "textures/13/preview.png",
+  schemes: [
+    "textures/doric/s1.jpg",
+    "textures/doric/s2.jpg"
+  ],
+
+  // путь в защищённом API (после ?path=)
+  sourcePath: "models/13.gltf",
+
+  // материал тела (управляется ползунком)
+  opacityMaterialName: "1",
+
+// материалы-сечения
+primarySectionMaterialNames: ["2", "3"],
+
+  // цвета сечений
+  materialColors: {
+    "2": "#d929c1", // круг
+    "3": "#1c58e5", // эллипс
+  },
+
+  // ===== CAD-обвязка =====
+cad: {
+  fromNodes: true,
+  lines: [
+    ["a", "b"],
+    ["c", "d"]
+  ]
+}
+},
   ]
 
 // ✅ Автоматически генерим sourceId, если не задан вручную
