@@ -70,7 +70,7 @@ cad: {
   ],
 
   // путь в защищённом API (после ?path=)
-  sourcePath: "models/1.1.gltf",
+  sourcePath: "models/1.2.gltf",
 
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
