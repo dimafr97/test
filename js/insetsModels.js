@@ -61,7 +61,7 @@ cad: {
 },
   {
   id: "inset_1.2",
-  name: "Куб и конус",
+  name: "Куб и конус 2",
   desc: "Врезка прямой плоскости в тело вращения",
   preview: "textures/1/preview.png",
   schemes: [
@@ -75,6 +75,40 @@ cad: {
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
 
+},
+  {
+  id: "inset_1",
+  name: "Куб и конус",
+  desc: "Врезка прямой плоскости в тело вращения",
+  preview: "textures/1/preview.png",
+  schemes: [
+    "textures/doric/s1.jpg",
+    "textures/doric/s2.jpg"
+  ],
+
+  // путь в защищённом API (после ?path=)
+  sourcePath: "models/1.1.gltf",
+
+  // материал тела (управляется ползунком)
+  opacityMaterialName: "1",
+
+// материалы-сечения
+primarySectionMaterialNames: ["2", "3"],
+auxSectionMaterialNames: ["4"],
+
+  // цвета сечений
+  materialColors: {
+    "4": "#ddf406" // вспомогательное
+  },
+
+  // ===== CAD-обвязка =====
+cad: {
+  fromNodes: true,
+  lines: [
+    ["a", "b"],
+    ["c", "d"]
+  ]
+}
 },
 
   {
