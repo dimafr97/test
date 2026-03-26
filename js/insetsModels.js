@@ -481,16 +481,15 @@ cad: {
   opacityMaterialName: "1",
 
 // материалы-сечения
-primarySectionMaterialNames: ["2"],
-auxSectionMaterialNames: ["3", "4", "5"],
+primarySectionMaterialNames: ["2", "5"],
+auxSectionMaterialNames: ["3", "4"],
 
-
-  // цвета сечений
+        // цвета сечений
   materialColors: {
-    "2": "#d929c1", // круг
-    "3": "#1c58e5", // эллипс
-    "4": "#ddf406", // вспомогательное
-    "5": "#12d6c3" // вспомогательное
+    "2": "#1c58e5", // порабола
+    "3": "#ddf406", // вспомогательное
+    "4": "#12d6c3", // вспомогательное
+    "5": "#d929c1" // круг
   },
 
   // ===== CAD-обвязка =====
