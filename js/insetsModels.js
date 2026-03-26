@@ -77,7 +77,7 @@ cad: {
 
 },
   {
-  id: "inset_1",
+  id: "inset_1.3",
   name: "Куб и конус",
   desc: "Врезка прямой плоскости в тело вращения",
   preview: "textures/1/preview.png",
@@ -87,7 +87,7 @@ cad: {
   ],
 
   // путь в защищённом API (после ?path=)
-  sourcePath: "models/1.1.gltf",
+  sourcePath: "models/1.3.gltf",
 
   // материал тела (управляется ползунком)
   opacityMaterialName: "1",
