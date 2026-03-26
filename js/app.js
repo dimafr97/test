@@ -16,14 +16,14 @@ const MAIN_MENU = [
     id: "section_arch",
     name: "Архитектурные детали",
     desc: "3D + Построение + Видео",
-    preview: "textures/doric/preview.png",
+    preview: "textures/preview/preview1.png",
     thumbLetter: "А"
   },
   {
     id: "section_insets",
     name: "Врезки",
     desc: "3D врезок",
-    preview: "textures/3/preview.png",
+    preview: "textures/preview/preview2.png",
     thumbLetter: "В"
   }
 ];
