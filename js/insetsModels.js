@@ -59,6 +59,23 @@ cad: {
   ]
 }
 },
+  {
+  id: "inset_1.2",
+  name: "Куб и конус",
+  desc: "Врезка прямой плоскости в тело вращения",
+  preview: "textures/1/preview.png",
+  schemes: [
+    "textures/doric/s1.jpg",
+    "textures/doric/s2.jpg"
+  ],
+
+  // путь в защищённом API (после ?path=)
+  sourcePath: "models/1.1.gltf",
+
+  // материал тела (управляется ползунком)
+  opacityMaterialName: "1",
+
+},
 
   {
   id: "inset_2",
