@@ -10,7 +10,7 @@ const RAW_INSETS = [
   id: "inset_0",
   name: "Общая теория / Введение",
   desc: "Схемы и видео",
-  preview: "textures/preview/preview2.png",
+  preview: "textures/preview/preview4.webp",
 
   // Для нулевой врезки 3D нет, поэтому sourcePath НЕ указываем
   schemes: [
