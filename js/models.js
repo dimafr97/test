@@ -24,7 +24,7 @@ export const MODELS = [
     id: "arch_0",
     name: "Общая теория / Введение",
     desc: "Построение + Видео",
-    preview: `${BASE}textures/doric/preview.png`,
+    preview: `${BASE}textures/preview/preview3.webp`,
     thumbLetter: "0",
 
     // ВАЖНО: у нулевой карточки нет url/source для 3D
