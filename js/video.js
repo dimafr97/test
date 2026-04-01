@@ -369,27 +369,18 @@ function createCard(url, idx) {
   const wrap = document.createElement("div");
   wrap.className = "video-card";
 
-// === JPG превью (лежит рядом с mp4) ===
-const previewImg = document.createElement("img");
+  const media = document.createElement("div");
+  media.className = "video-card-media";
 
-// меняем .mp4 -> .jpg
-previewImg.src = srcUrl.replace(/\.mp4(\?.*)?$/i, ".jpg$1");
+  // === JPG превью (лежит рядом с mp4) ===
+  const previewImg = document.createElement("img");
 
-previewImg.alt = `Видео ${idx + 1}`;
+  // меняем .mp4 -> .jpg
+  previewImg.src = srcUrl.replace(/\.mp4(\?.*)?$/i, ".jpg$1");
+  previewImg.alt = `Видео ${idx + 1}`;
 
-previewImg.style.cssText = `
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  background: #050506;
-  display: block;
-`;
+  media.appendChild(previewImg);
 
-wrap.appendChild(previewImg);
-
-
-
-  // play icon overlay
   const icon = document.createElement("div");
   icon.className = "video-card-play";
   icon.innerHTML = `
@@ -409,7 +400,8 @@ wrap.appendChild(previewImg);
     </div>
   `;
 
-  wrap.appendChild(icon);
+  media.appendChild(icon);
+  wrap.appendChild(media);
 
   // Клик -> открыть плеер (это и есть user gesture)
   wrap.addEventListener("click", () => {
