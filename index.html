@@ -491,15 +491,11 @@ body.video-playing .viewer-wrapper {
 }
 
 .video-list {
-  flex: 1;
   width: 100%;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;          /* ✅ фиксированный одинаковый отступ */
-  padding: 16px;      /* ✅ фиксированные поля */
+  gap: 16px;
+  padding: 16px;
   align-content: flex-start;
 }
 
