@@ -478,21 +478,16 @@ body.video-playing .viewer-wrapper {
 }
 
 /* ===== VIDEO LIST (cards) ===== */ /* ADDED */
-#videoOverlay {
-  align-items: stretch;
-  justify-content: flex-start;
-  padding-top: var(--viewer-toolbar-height);
-  touch-action: pan-y;
-}
-
-
+      
 #videoOverlay {
   position: absolute;
   inset: 0;
   padding-top: var(--viewer-toolbar-height);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  touch-action: pan-y;
 }
 
 .video-list {
