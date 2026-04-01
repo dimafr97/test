@@ -84,28 +84,34 @@ body {
     }
 
     /* ---------- ГАЛЕРЕЯ ---------- */
-    .gallery {
-      position: absolute;
-      inset: 0;
-      padding: 16px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 14px;
-      background: radial-gradient(ellipse at top, #14141a 0%, #050506 55%);
-      z-index: 15;
-      opacity: 1;
-      pointer-events: auto;
-      transition: opacity 0.3s ease;
-      align-content: flex-start;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
+.gallery {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  background: radial-gradient(ellipse at top, #14141a 0%, #050506 55%);
+  z-index: 15;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.3s ease;
+  align-content: flex-start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
-    @media (max-width: 640px) {
-      .gallery {
-        grid-template-columns: minmax(0, 1fr);
-      }
-    }
+@media (min-width: 700px) {
+  .gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1180px) {
+  .gallery {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
 
     .gallery.hidden {
       opacity: 0;
@@ -495,20 +501,21 @@ body.video-playing .viewer-wrapper {
 .video-list {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: 1fr;
   gap: 16px;
   padding: 16px;
   align-content: flex-start;
 }
 
-
-
-
-
-@media (max-width: 640px) {
+@media (min-width: 700px) {
   .video-list {
-    grid-template-columns: 1fr;
-    /* gap НЕ трогаем — чтобы был одинаковый */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1180px) {
+  .video-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
