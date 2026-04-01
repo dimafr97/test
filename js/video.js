@@ -368,13 +368,6 @@ function createCard(url, idx) {
 
   const wrap = document.createElement("div");
   wrap.className = "video-card";
-wrap.style.cssText = `
-  position: relative;
-  width: 100%;
-  border-radius: 12px;
-  overflow: hidden;
-  background: #111;
-`;
 
 // === JPG превью (лежит рядом с mp4) ===
 const previewImg = document.createElement("img");
@@ -398,14 +391,7 @@ wrap.appendChild(previewImg);
 
   // play icon overlay
   const icon = document.createElement("div");
-  icon.style.cssText = `
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  `;
+  icon.className = "video-card-play";
   icon.innerHTML = `
     <div style="
       width: 56px; height: 56px;
@@ -445,22 +431,6 @@ function render() {
   listEl.innerHTML = "";
   cards = [];
   currentIndex = -1;
-
-  // Grid 2 колонки на ширине, 1 колонка на узких
-  listEl.style.display = "grid";
-  listEl.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
-  listEl.style.gap = "10px";
-  listEl.style.padding = "12px";
-  listEl.style.overflowY = "auto";
-  listEl.style.webkitOverflowScrolling = "touch";
-
-  // на совсем узких — 1 колонка
-  const setCols = () => {
-    const w = listEl.clientWidth || window.innerWidth || 360;
-    listEl.style.gridTemplateColumns = w < 520 ? "1fr" : "repeat(2, minmax(0, 1fr))";
-  };
-  setCols();
-  window.addEventListener("resize", setCols, { passive: true });
 
   const has = Array.isArray(videoList) && videoList.length > 0;
   if (emptyEl) emptyEl.style.display = has ? "none" : "block";
