@@ -101,8 +101,7 @@ function showListMode() {
   isPlayerOpen = false;
 
   if (playerWrap) playerWrap.style.display = "none";
-  if (listEl) listEl.style.display = "grid";
-
+  if (listEl) listEl.style.display = "";
   showTabs();
   hideNavPanel();
 }
@@ -445,23 +444,6 @@ function render() {
   listEl.innerHTML = "";
   cards = [];
   currentIndex = -1;
-
-  // Grid 2 колонки на ширине, 1 колонка на узких
-  listEl.style.display = "grid";
-  listEl.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
-  listEl.style.gap = "10px";
-  listEl.style.padding = "12px";
-  listEl.style.overflowY = "auto";
-  listEl.style.webkitOverflowScrolling = "touch";
-
-  // на совсем узких — 1 колонка
-  const setCols = () => {
-    const w = listEl.clientWidth || window.innerWidth || 360;
-    listEl.style.gridTemplateColumns = w < 520 ? "1fr" : "repeat(2, minmax(0, 1fr))";
-  };
-  setCols();
-  window.addEventListener("resize", setCols, { passive: true });
-
   const has = Array.isArray(videoList) && videoList.length > 0;
   if (emptyEl) emptyEl.style.display = has ? "none" : "block";
   if (!has) return;
