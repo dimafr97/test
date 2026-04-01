@@ -101,15 +101,31 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-@media (min-width: 700px) {
+/* 2 колонки */
+@media (min-width: 600px) {
   .gallery {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 1180px) {
+/* 3 колонки */
+@media (min-width: 900px) {
   .gallery {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* 4 колонки */
+@media (min-width: 1200px) {
+  .gallery {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* 5 колонок максимум */
+@media (min-width: 1500px) {
+  .gallery {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -507,18 +523,33 @@ body.video-playing .viewer-wrapper {
   align-content: flex-start;
 }
 
-@media (min-width: 700px) {
+/* 2 */
+@media (min-width: 600px) {
   .video-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 1180px) {
+/* 3 */
+@media (min-width: 900px) {
   .video-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
+/* 4 */
+@media (min-width: 1200px) {
+  .video-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* 5 */
+@media (min-width: 1500px) {
+  .video-list {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
 
 
 
