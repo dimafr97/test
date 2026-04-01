@@ -522,9 +522,14 @@ body.video-playing .viewer-wrapper {
 .video-card-media {
   position: relative;
   width: 100%;
-  padding-top: 56.25%; /* 16:9 */
+  height: 220px;
   overflow: hidden;
   background: #050506;
+}
+      @media (max-width: 640px) {
+  .video-card-media {
+    height: 180px;
+  }
 }
 
 .video-card-media img {
