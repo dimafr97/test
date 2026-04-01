@@ -79,6 +79,10 @@ onPause: () => {
 
   window.addEventListener("resize", handleResize);
 
+  requestAnimationFrame(() => {
+    syncVideoOverlayOffset();
+  });
+
   showGallery();
 
   return {
@@ -90,9 +94,25 @@ onPause: () => {
 
 function handleResize() {
   threeResize();
+
   if (activeView === "scheme") {
     activateScheme();
   }
+
+  if (activeView === "video") {
+    syncVideoOverlayOffset();
+  }
+}
+
+function syncVideoOverlayOffset() {
+  const { viewerToolbarEl, viewerWrapperEl, videoOverlayEl } = dom || {};
+  if (!viewerToolbarEl || !viewerWrapperEl || !videoOverlayEl) return;
+
+  const toolbarRect = viewerToolbarEl.getBoundingClientRect();
+  const wrapperRect = viewerWrapperEl.getBoundingClientRect();
+
+  const topOffset = Math.max(0, Math.ceil(toolbarRect.bottom - wrapperRect.top + 12));
+  videoOverlayEl.style.setProperty("--video-overlay-top", `${topOffset}px`);
 }
 
 function setupUiHandlers() {
@@ -322,12 +342,12 @@ function setViewMode(mode) {
   // video
   if (videoOverlayEl) {
     const isVideo = mode === "video";
-    videoOverlayEl.style.display = isVideo ? "flex" : "none";
+    videoOverlayEl.style.display = isVideo ? "block" : "none";
 
     if (isVideo) {
+      syncVideoOverlayOffset();
       activateVideo();
     } else {
-      // уходя с видео — гарантированно закрываем плеер и возвращаем UI
       deactivateVideo();
       document.body.classList.remove("video-playing");
     }
