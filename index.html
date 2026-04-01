@@ -502,39 +502,32 @@ body.video-playing .viewer-wrapper {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
+  display: block;
   padding: 16px;
-  align-content: flex-start;
-  align-items: start;
 }
 
-@media (min-width: 760px) {
-  .video-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-/* Карточка без aspect-ratio:
-   Telegram/iOS WebView стабильнее работает через padding-top */
 .video-card {
-  position: relative;
   display: block;
   width: 100%;
+  margin: 0 0 16px 0;
   border-radius: 12px;
   overflow: hidden;
   background: #111;
 }
 
-.video-card::before {
-  content: "";
-  display: block;
-  padding-top: 56.25%; /* 16:9 */
+.video-card:last-child {
+  margin-bottom: 0;
 }
 
-/* Превью растягиваем по карточке */
-.video-card img {
+.video-card-media {
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 */
+  overflow: hidden;
+  background: #050506;
+}
+
+.video-card-media img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -544,7 +537,6 @@ body.video-playing .viewer-wrapper {
   background: #050506;
 }
 
-/* Оверлей play-кнопки */
 .video-card-play {
   position: absolute;
   inset: 0;
