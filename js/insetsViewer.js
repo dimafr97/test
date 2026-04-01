@@ -89,12 +89,21 @@ export function initInsetsViewer(refs) {
 
   setupUiHandlers();
   setupInset3dUiAutoHide();
+    window.addEventListener("resize", () => {
+    if (activeView === "video") {
+      syncVideoOverlayOffset();
+    }
+  });
+
+  requestAnimationFrame(() => {
+    syncVideoOverlayOffset();
+  });
 
   return {
     openById,
-    showGallery,     // вернуться к главному меню/галерее
-    enterInsetMode,  // включить inset-mode (скрыть вкладки)
-    exitInsetMode,   // выключить inset-mode
+    showGallery,
+    enterInsetMode,
+    exitInsetMode,
   };
 }
 
@@ -534,6 +543,17 @@ function setCanvasInteractionEnabled(enabled) {
   dom.canvasEl.style.pointerEvents = enabled ? "auto" : "none";
 }
 
+function syncVideoOverlayOffset() {
+  const { viewerToolbarEl, viewerWrapperEl, videoOverlayEl } = dom || {};
+  if (!viewerToolbarEl || !viewerWrapperEl || !videoOverlayEl) return;
+
+  const toolbarRect = viewerToolbarEl.getBoundingClientRect();
+  const wrapperRect = viewerWrapperEl.getBoundingClientRect();
+
+  const topOffset = Math.max(0, Math.ceil(toolbarRect.bottom - wrapperRect.top + 12));
+  videoOverlayEl.style.setProperty("--video-overlay-top", `${topOffset}px`);
+}
+
 function configureViewTabsForInset(meta) {
   currentMeta = meta;
 
@@ -587,9 +607,10 @@ function setViewMode(mode) {
 
   if (dom.videoOverlayEl) {
     const isVideo = mode === "video";
-    dom.videoOverlayEl.style.display = isVideo ? "flex" : "none";
+    dom.videoOverlayEl.style.display = isVideo ? "block" : "none";
 
     if (isVideo) {
+      syncVideoOverlayOffset();
       activateVideo();
     } else {
       deactivateVideo();
