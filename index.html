@@ -496,48 +496,62 @@ body.video-playing .viewer-wrapper {
 }
 
 .video-list {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;          /* ✅ фиксированный одинаковый отступ */
-  padding: 16px;      /* ✅ фиксированные поля */
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 16px;
   align-content: flex-start;
+  align-items: start;
 }
 
-
-
-
-
-@media (max-width: 640px) {
+@media (min-width: 760px) {
   .video-list {
-    grid-template-columns: 1fr;
-    /* gap НЕ трогаем — чтобы был одинаковый */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-
-
-
-/* Карточка сама держит высоту 16:9 — одинаково в TG / Safari / Desktop */
+/* Карточка без aspect-ratio:
+   Telegram/iOS WebView стабильнее работает через padding-top */
 .video-card {
+  position: relative;
+  display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
   border-radius: 12px;
   overflow: hidden;
   background: #111;
 }
 
-/* Превью (jpg) занимает всю карточку */
+.video-card::before {
+  content: "";
+  display: block;
+  padding-top: 56.25%; /* 16:9 */
+}
+
+/* Превью растягиваем по карточке */
 .video-card img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
   object-fit: cover;
   background: #050506;
+}
+
+/* Оверлей play-кнопки */
+.video-card-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 
