@@ -222,6 +222,15 @@ export function activateScheme() {
   updateSchemeNavButtons();
 }
 
+export function resetSchemeView() {
+  if (!overlay || !img) return;
+  if (!img.complete) return;
+
+  active = true;
+  resetTransform();
+  updateSchemeNavButtons();
+}
+
 export function deactivateScheme() {
   active = false;
   hideUi(false);
