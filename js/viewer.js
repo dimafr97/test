@@ -116,7 +116,7 @@ function syncVideoOverlayOffset() {
 }
 
 function setupUiHandlers() {
-  const { backBtn, prevBtn, nextBtn, tab3dBtn, tabSchemeBtn, tabVideoBtn } = dom;
+const { backBtn, prevBtn, nextBtn, tab3dBtn, tabSchemeBtn, tabPhotoBtn, tabVideoBtn } = dom;
 
 backBtn.addEventListener("click", () => {
   if (isInsetModeActive()) return; // ✅ во Врезках не трогаем арх-режим
@@ -156,6 +156,12 @@ prevBtn.addEventListener("click", () => {
     const meta = getCurrentModelMeta();
     if (!meta || !meta.schemes || meta.schemes.length === 0) return;
     setViewMode("scheme");
+  });
+
+    tabPhotoBtn?.addEventListener("click", () => {
+    const meta = getCurrentModelMeta();
+    if (!meta || !meta.photos || meta.photos.length === 0) return;
+    setViewMode("photo");
   });
 
   tabVideoBtn.addEventListener("click", () => {
@@ -202,19 +208,18 @@ function setCanvasInteractionEnabled(enabled) {
 
 function getModelCapabilities(meta) {
   return {
-    // Нулевая карточка arch_0 — без 3D.
-    // Все остальные архитектурные модели считаем 3D-моделями.
     has3d: !!(meta && meta.id !== "arch_0"),
     hasScheme: Array.isArray(meta?.schemes) && meta.schemes.length > 0,
+    hasPhoto: Array.isArray(meta?.photos) && meta.photos.length > 0,
     hasVideo: Array.isArray(meta?.video) && meta.video.length > 0
   };
 }
-
 function chooseStartView(meta) {
-  const { has3d, hasScheme, hasVideo } = getModelCapabilities(meta);
+  const { has3d, hasScheme, hasPhoto, hasVideo } = getModelCapabilities(meta);
 
   if (has3d) return "3d";
   if (hasScheme) return "scheme";
+  if (hasPhoto) return "photo";
   if (hasVideo) return "video";
   return "3d";
 }
@@ -282,9 +287,8 @@ function startModelLoading(meta) {
 }
 
 function configureViewTabsForModel(meta) {
-  const { tab3dBtn, tabSchemeBtn, tabVideoBtn } = dom;
-
-  const { has3d, hasScheme, hasVideo } = getModelCapabilities(meta);
+const { tab3dBtn, tabSchemeBtn, tabPhotoBtn, tabVideoBtn } = dom;
+const { has3d, hasScheme, hasPhoto, hasVideo } = getModelCapabilities(meta);
 
   if (tab3dBtn) {
     tab3dBtn.style.display = has3d ? "" : "none";
@@ -295,16 +299,14 @@ function configureViewTabsForModel(meta) {
     tabSchemeBtn.style.display = hasScheme ? "" : "none";
     tabSchemeBtn.classList.toggle("disabled", !hasScheme);
   }
+    if (tabPhotoBtn) {
+    tabPhotoBtn.style.display = hasPhoto ? "" : "none";
+    tabPhotoBtn.classList.toggle("disabled", !hasPhoto);
+  }
 
   if (tabVideoBtn) {
     tabVideoBtn.style.display = hasVideo ? "" : "none";
     tabVideoBtn.classList.toggle("disabled", !hasVideo);
-  }
-
-  if (hasScheme) {
-    setSchemeImages(meta.schemes);
-  } else {
-    setSchemeImages([]);
   }
 
   if (hasVideo) {
@@ -319,24 +321,37 @@ function configureViewTabsForModel(meta) {
 function setViewMode(mode) {
   activeView = mode;
 
-  const {
-    tab3dBtn,
-    tabSchemeBtn,
-    tabVideoBtn,
-    schemeOverlayEl,
-    videoOverlayEl
-  } = dom;
+const {
+  tab3dBtn,
+  tabSchemeBtn,
+  tabPhotoBtn,
+  tabVideoBtn,
+  schemeOverlayEl,
+  videoOverlayEl
+} = dom;
 
-  tab3dBtn.classList.toggle("active", mode === "3d");
-  tabSchemeBtn.classList.toggle("active", mode === "scheme");
-  tabVideoBtn.classList.toggle("active", mode === "video");
+tab3dBtn?.classList.toggle("active", mode === "3d");
+tabSchemeBtn?.classList.toggle("active", mode === "scheme");
+tabPhotoBtn?.classList.toggle("active", mode === "photo");
+tabVideoBtn?.classList.toggle("active", mode === "video");
 
   // scheme
   if (schemeOverlayEl) {
-    const isScheme = mode === "scheme";
-    schemeOverlayEl.style.display = isScheme ? "flex" : "none";
-    if (isScheme) activateScheme();
-    else deactivateScheme();
+    const isImageMode = mode === "scheme" || mode === "photo";
+    const meta = getCurrentModelMeta();
+
+    schemeOverlayEl.style.display = isImageMode ? "flex" : "none";
+
+    if (isImageMode && meta) {
+      if (mode === "scheme") {
+        setSchemeImages(Array.isArray(meta.schemes) ? meta.schemes : []);
+      } else {
+        setSchemeImages(Array.isArray(meta.photos) ? meta.photos : []);
+      }
+      activateScheme();
+    } else {
+      deactivateScheme();
+    }
   }
 
   // video
@@ -357,7 +372,7 @@ function setViewMode(mode) {
   // - в схеме: UI управляется scheme.js
   // - в 3d: UI показываем
   // - при уходе из scheme: возвращаем UI
-  if (mode !== "scheme") {
+  if (mode !== "scheme" && mode !== "photo") {
     setUiHidden(false);
   }
 }
