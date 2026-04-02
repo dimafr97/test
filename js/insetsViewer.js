@@ -63,16 +63,17 @@ export function initInsetsViewer(refs) {
     }
   });
 
-  initVideo(
-    {
-      overlayEl: dom.videoOverlayEl,
-      listEl: dom.videoListEl,
-      emptyEl: dom.videoEmptyEl,
-      toolbarEl: dom.viewerToolbarEl,
-      tab3dBtn: dom.tab3dBtn,
-      tabSchemeBtn: dom.tabSchemeBtn,
-      tabVideoBtn: dom.tabVideoBtn
-    },
+initVideo(
+  {
+    overlayEl: dom.videoOverlayEl,
+    listEl: dom.videoListEl,
+    emptyEl: dom.videoEmptyEl,
+    toolbarEl: dom.viewerToolbarEl,
+    tab3dBtn: dom.tab3dBtn,
+    tabSchemeBtn: dom.tabSchemeBtn,
+    tabPhotoBtn: dom.tabPhotoBtn,
+    tabVideoBtn: dom.tabVideoBtn
+  },
     {
       onPlay: () => {
         setUiHidden(false);
