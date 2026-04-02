@@ -96,6 +96,7 @@ function handleResize() {
   threeResize();
 
   if (activeView === "scheme" || activeView === "photo") {
+    deactivateScheme();
     activateScheme();
   }
 
@@ -350,24 +351,26 @@ tabPhotoBtn?.classList.toggle("active", mode === "photo");
 tabVideoBtn?.classList.toggle("active", mode === "video");
 
   // scheme
-  if (schemeOverlayEl) {
-    const isImageMode = mode === "scheme" || mode === "photo";
-    const meta = getCurrentModelMeta();
+ if (schemeOverlayEl) {
+  const isImageMode = mode === "scheme" || mode === "photo";
+  const meta = getCurrentModelMeta();
 
-    schemeOverlayEl.style.display = isImageMode ? "flex" : "none";
+  schemeOverlayEl.style.display = isImageMode ? "flex" : "none";
 
-    if (isImageMode && meta) {
-      if (mode === "scheme") {
-        setSchemeImages(Array.isArray(meta.schemes) ? meta.schemes : []);
-      } else {
-        setSchemeImages(Array.isArray(meta.photos) ? meta.photos : []);
-      }
-      activateScheme();
+  if (isImageMode && meta) {
+    deactivateScheme();
+
+    if (mode === "scheme") {
+      setSchemeImages(Array.isArray(meta.schemes) ? meta.schemes : []);
     } else {
-      deactivateScheme();
+      setSchemeImages(Array.isArray(meta.photos) ? meta.photos : []);
     }
-  }
 
+    activateScheme();
+  } else {
+    deactivateScheme();
+  }
+}
   // video
   if (videoOverlayEl) {
     const isVideo = mode === "video";
