@@ -189,11 +189,13 @@ function initApp() {
   const galleryEl = document.getElementById("gallery");
   const viewerWrapperEl = document.getElementById("viewerWrapper");
 
-  const modelLabelEl = document.getElementById("modelLabel");
-  const prevBtn = document.getElementById("prevBtn");
-  const nextBtn = document.getElementById("nextBtn");
-  const backBtn = document.getElementById("backBtn");
-
+const modelLabelEl = document.getElementById("modelLabel");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const backBtn = document.getElementById("backBtn");
+const bottomPrevBtn = document.getElementById("bottomPrevBtn");
+const bottomNextBtn = document.getElementById("bottomNextBtn");
+const bottomBackBtn = document.getElementById("bottomBackBtn");
 const tab3dBtn = document.getElementById("tab3d");
 const tabSchemeBtn = document.getElementById("tabScheme");
 const tabPhotoBtn = document.getElementById("tabPhoto");
@@ -252,6 +254,9 @@ const breadcrumbSectionLabel = document.getElementById("breadcrumbSectionLabel")
     prevBtn,
     nextBtn,
     backBtn,
+bottomPrevBtn,
+bottomNextBtn,
+bottomBackBtn,
 
 tab3dBtn,
 tabSchemeBtn,
@@ -279,6 +284,9 @@ videoEmptyEl,     // ADDED
   prevBtn,
   nextBtn,
   backBtn,
+bottomPrevBtn,
+bottomNextBtn,
+bottomBackBtn,
 tab3dBtn,
 tabSchemeBtn,
 tabPhotoBtn,
