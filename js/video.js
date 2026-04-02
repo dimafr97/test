@@ -211,6 +211,8 @@ function ensurePlayerDom() {
   // Events
 playerVideo.addEventListener("play", () => {
   setLoading(false);
+  hideTabs();
+  hideNavPanel();
   if (onPlayCb) onPlayCb();
   document.body.classList.add("video-playing");
 });
@@ -218,9 +220,10 @@ playerVideo.addEventListener("play", () => {
 
 playerVideo.addEventListener("pause", () => {
   setLoading(false);
+  showTabs();
+  showNavPanel();
   if (onPauseCb) onPauseCb();
   document.body.classList.remove("video-playing");
-  showNavPanel(); // на паузе всегда видно
 });
 
 
