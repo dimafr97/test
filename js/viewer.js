@@ -38,13 +38,13 @@ export function initViewer(refs) {
     prevBtnEl: dom.schemePrevBtn,
     nextBtnEl: dom.schemeNextBtn,
     context: "arch",
-    onUiVisibility: (hidden) => {
-      if (activeView !== "scheme") {
-        setUiHidden(false);
-        return;
-      }
-      setUiHidden(hidden);
-    }
+onUiVisibility: (hidden) => {
+  if (activeView !== "scheme" && activeView !== "photo") {
+    setUiHidden(false);
+    return;
+  }
+  setUiHidden(hidden);
+}
   });
   // VIDEO init (важно: refs совпадают с новым video.js)
   initVideo(
@@ -95,7 +95,7 @@ onPause: () => {
 function handleResize() {
   threeResize();
 
-  if (activeView === "scheme") {
+  if (activeView === "scheme" || activeView === "photo") {
     activateScheme();
   }
 
