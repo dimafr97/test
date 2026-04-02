@@ -6,7 +6,7 @@
 
 import { MODELS, loadModel, getModelMeta } from "./models.js";
 import { initThree, setModel as threeSetModel, resize as threeResize } from "./threeViewer.js";
-import { initScheme, setSchemeImages, activateScheme, deactivateScheme } from "./scheme.js";
+import { initScheme, setSchemeImages, activateScheme, deactivateScheme, resetSchemeView } from "./scheme.js";
 import { initVideo, setVideoList, activateVideo, deactivateVideo } from "./video.js";
 
 let dom = null;
@@ -96,8 +96,7 @@ function handleResize() {
   threeResize();
 
   if (activeView === "scheme" || activeView === "photo") {
-    deactivateScheme();
-    activateScheme();
+    resetSchemeView();
   }
 
   if (activeView === "video") {
@@ -351,15 +350,13 @@ tabPhotoBtn?.classList.toggle("active", mode === "photo");
 tabVideoBtn?.classList.toggle("active", mode === "video");
 
   // scheme
- if (schemeOverlayEl) {
+if (schemeOverlayEl) {
   const isImageMode = mode === "scheme" || mode === "photo";
   const meta = getCurrentModelMeta();
 
   schemeOverlayEl.style.display = isImageMode ? "flex" : "none";
 
   if (isImageMode && meta) {
-    deactivateScheme();
-
     if (mode === "scheme") {
       setSchemeImages(Array.isArray(meta.schemes) ? meta.schemes : []);
     } else {
