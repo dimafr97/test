@@ -33,6 +33,7 @@ let emptyEl = null;
 let toolbarEl = null;
 let tab3dBtn = null;
 let tabSchemeBtn = null;
+let tabPhotoBtn = null;
 let tabVideoBtn = null;
 
 let active = false;
@@ -119,12 +120,14 @@ function showPlayerMode() {
 function hideTabs() {
   if (tab3dBtn) tab3dBtn.style.display = "none";
   if (tabSchemeBtn) tabSchemeBtn.style.display = "none";
+  if (tabPhotoBtn) tabPhotoBtn.style.display = "none";
   if (tabVideoBtn) tabVideoBtn.style.display = "none";
 }
 
 function showTabs() {
   if (tab3dBtn) tab3dBtn.style.display = "";
   if (tabSchemeBtn) tabSchemeBtn.style.display = "";
+  if (tabPhotoBtn) tabPhotoBtn.style.display = "";
   if (tabVideoBtn) tabVideoBtn.style.display = "";
 }
 
@@ -576,10 +579,11 @@ export function initVideo(refs, callbacks = {}) {
   listEl = refs?.listEl || null;
   emptyEl = refs?.emptyEl || null;
 
-  toolbarEl = refs?.toolbarEl || null;
-  tab3dBtn = refs?.tab3dBtn || null;
-  tabSchemeBtn = refs?.tabSchemeBtn || null;
-  tabVideoBtn = refs?.tabVideoBtn || null;
+toolbarEl = refs?.toolbarEl || null;
+tab3dBtn = refs?.tab3dBtn || null;
+tabSchemeBtn = refs?.tabSchemeBtn || null;
+tabPhotoBtn = refs?.tabPhotoBtn || null;
+tabVideoBtn = refs?.tabVideoBtn || null;
 
   onPlayCb = callbacks.onPlay || null;
   onPauseCb = callbacks.onPause || null;
