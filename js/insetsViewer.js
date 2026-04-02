@@ -20,7 +20,7 @@ import {
 } from "./threeViewer.js";
 import { loadModel } from "./models.js";
 import { INSETS, getInsetMeta } from "./insetsModels.js";
-import { initScheme, setSchemeImages, activateScheme, deactivateScheme } from "./scheme.js";
+import { initScheme, setSchemeImages, activateScheme, deactivateScheme, resetSchemeView } from "./scheme.js";
 import { initVideo, setVideoList, activateVideo, deactivateVideo } from "./video.js";
 
 let dom = null;
@@ -91,8 +91,7 @@ export function initInsetsViewer(refs) {
   setupInset3dUiAutoHide();
 window.addEventListener("resize", () => {
   if (activeView === "scheme") {
-    deactivateScheme();
-    activateScheme();
+    resetSchemeView();
   }
 
   if (activeView === "video") {
