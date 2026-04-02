@@ -436,10 +436,12 @@ function getIndex(id) {
 function setUiHidden(hidden) {
   const toolbar = dom?.viewerToolbarEl || document.querySelector(".viewer-toolbar");
   const statusEl = dom?.statusEl;
+  const bottomNavEl = document.getElementById("viewerBottomNav");
   if (!toolbar || !statusEl) return;
 
   toolbar.classList.toggle("ui-hidden", !!hidden);
   statusEl.classList.toggle("ui-hidden", !!hidden);
+  bottomNavEl?.classList.toggle("ui-hidden", !!hidden);
 }
 
 function setupInset3dUiAutoHide() {
