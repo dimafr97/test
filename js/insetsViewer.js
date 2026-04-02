@@ -91,13 +91,35 @@ export function initInsetsViewer(refs) {
   setupInset3dUiAutoHide();
 window.addEventListener("resize", () => {
   if (activeView === "scheme") {
-    resetSchemeView();
+    scheduleSchemeRelayout();
   }
 
   if (activeView === "video") {
     syncVideoOverlayOffset();
   }
 });
+
+  window.addEventListener("orientationchange", () => {
+  if (activeView === "scheme") {
+    scheduleSchemeRelayout();
+  }
+
+  if (activeView === "video") {
+    syncVideoOverlayOffset();
+  }
+});
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", () => {
+    if (activeView === "scheme") {
+      scheduleSchemeRelayout();
+    }
+
+    if (activeView === "video") {
+      syncVideoOverlayOffset();
+    }
+  });
+}
 
   requestAnimationFrame(() => {
     syncVideoOverlayOffset();
@@ -558,6 +580,22 @@ function syncVideoOverlayOffset() {
 
   const topOffset = Math.max(0, Math.ceil(toolbarRect.bottom - wrapperRect.top + 12));
   videoOverlayEl.style.setProperty("--video-overlay-top", `${topOffset}px`);
+}
+
+function scheduleSchemeRelayout() {
+  const rerun = () => {
+    resetSchemeView();
+  };
+
+  requestAnimationFrame(() => {
+    rerun();
+
+    requestAnimationFrame(() => {
+      rerun();
+    });
+  });
+
+  setTimeout(rerun, 120);
 }
 
 function configureViewTabsForInset(meta) {
