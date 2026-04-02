@@ -194,9 +194,10 @@ function initApp() {
   const nextBtn = document.getElementById("nextBtn");
   const backBtn = document.getElementById("backBtn");
 
-  const tab3dBtn = document.getElementById("tab3d");
-  const tabSchemeBtn = document.getElementById("tabScheme");
-  const tabVideoBtn = document.getElementById("tabVideo");
+const tab3dBtn = document.getElementById("tab3d");
+const tabSchemeBtn = document.getElementById("tabScheme");
+const tabPhotoBtn = document.getElementById("tabPhoto");
+const tabVideoBtn = document.getElementById("tabVideo");
 
   const canvasEl = document.getElementById("canvas");
 
@@ -252,9 +253,10 @@ const breadcrumbSectionLabel = document.getElementById("breadcrumbSectionLabel")
     nextBtn,
     backBtn,
 
-    tab3dBtn,
-    tabSchemeBtn,
-    tabVideoBtn,
+tab3dBtn,
+tabSchemeBtn,
+tabPhotoBtn,
+tabVideoBtn,
 
     canvasEl,
 
@@ -277,9 +279,10 @@ videoEmptyEl,     // ADDED
   prevBtn,
   nextBtn,
   backBtn,
-  tab3dBtn,
-  tabSchemeBtn,
-  tabVideoBtn,
+tab3dBtn,
+tabSchemeBtn,
+tabPhotoBtn,
+tabVideoBtn,
   canvasEl,
   loadingEl,
   loadingTextEl,
