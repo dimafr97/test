@@ -96,9 +96,7 @@ function handleResize() {
   threeResize();
 
   if (activeView === "scheme" || activeView === "photo") {
-    // ЖЁСТКИЙ RESET вместо повторной инициализации
-    schemeInstance?.reset?.();   // если есть
-    activateScheme();            // потом пересобираем
+    activateScheme();
   }
 
   if (activeView === "video") {
