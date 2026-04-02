@@ -199,49 +199,157 @@ body {
     }
 
     /* ---------- TOOLBAR + TABS --------- */
-    .viewer-toolbar {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      z-index: 30;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      pointer-events: auto;
-      transition: opacity 0.25s ease, transform 0.25s ease;
-    }
 
-    .viewer-toolbar-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      width: 100%;
-    }
+.viewer-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: auto;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
 
-    .viewer-model-row {
-      justify-content: center;
-    }
+.viewer-toolbar-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
 
-    .viewer-nav-row {
-      justify-content: center;
-      flex-wrap: wrap;
-    }
+.viewer-model-row {
+  justify-content: center;
+}
 
-    .viewer-tabs-row {
-      justify-content: center;
-    }
+.viewer-tabs-row {
+  justify-content: center;
+}
 
-    .viewer-tabs {
-      display: flex;
-      flex-wrap: nowrap;
-      gap: 6px;
-      width: 100%;
-      max-width: 480px;
-      margin: 0 auto;
-      justify-content: center;
-    }
+.model-label {
+  font-size: 13px;
+  color: #b7b7c0;
+  max-width: 320px;
+  text-align: center;
+}
 
+/* Верхний главный контрол — единый segmented */
+.viewer-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+}
+
+.tab-btn {
+  padding: 9px 8px;
+  font-size: 13px;
+  border-radius: 999px;
+  opacity: 0.95;
+  min-width: 0;
+  text-align: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.tab-btn.active {
+  background: linear-gradient(90deg, #ffffff, #8888ff);
+  color: #050506;
+  border-color: transparent;
+}
+
+.tab-btn.disabled {
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+/* Старую верхнюю nav-строку скрываем, она больше не нужна */
+.viewer-nav-row {
+  display: none !important;
+}
+
+/* Нижняя компактная навигация */
+.viewer-bottom-nav {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.viewer-bottom-nav.ui-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(8px);
+}
+
+.viewer-bottom-nav-btn {
+  min-width: 44px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #f5f5f5;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewer-bottom-nav-btn.arrow {
+  width: 40px;
+  padding: 0;
+  font-size: 18px;
+}
+
+@media (max-width: 640px) {
+  .viewer-toolbar {
+    gap: 8px;
+  }
+
+  .viewer-tabs {
+    max-width: none;
+  }
+
+  .tab-btn {
+    font-size: 12px;
+    padding: 8px 6px;
+  }
+
+  .viewer-bottom-nav {
+    bottom: 14px;
+    gap: 8px;
+  }
+
+  .viewer-bottom-nav-btn {
+    height: 38px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .viewer-bottom-nav-btn.arrow {
+    width: 38px;
+    font-size: 17px;
+  }
+}
     .btn {
       background: rgba(0, 0, 0, 0.6);
       color: #f5f5f5;
@@ -261,32 +369,6 @@ body {
       transform: translateY(1px);
     }
 
-    .nav-btn {
-      min-width: 0;
-    }
-
-    .model-label {
-      font-size: 13px;
-      color: #b7b7c0;
-      max-width: 260px;
-      text-align: center;
-    }
-
-    .tab-btn {
-      padding: 7px 10px;
-      font-size: 13px;
-      border-radius: 999px;
-      opacity: 0.9;
-      flex: 1 1 0;
-      min-width: 0;
-      text-align: center;
-    }
-
-    .tab-btn.active {
-      background: linear-gradient(90deg, #ffffff, #8888ff);
-      color: #050506;
-      border-color: transparent;
-    }
 
     .tab-btn.disabled {
       opacity: 0.25;
@@ -718,26 +800,25 @@ body.inset-mode #insetOpacityRow {
     <!-- ВЬЮЕР -->
     <div class="viewer-wrapper" id="viewerWrapper">
       <div class="viewer-toolbar">
-        <div class="viewer-toolbar-row viewer-model-row">
-          <div class="model-label" id="modelLabel"></div>
-        </div>
-
-        <div class="viewer-toolbar-row viewer-nav-row">
-          <button class="btn nav-btn" id="prevBtn">Предыдущая</button>
-          <button class="btn nav-btn" id="backBtn">Галерея</button>
-          <button class="btn nav-btn" id="nextBtn">Следующая</button>
-        </div>
-
-        <!-- ✅ Ползунок прозрачности (только для Врезок) -->
-
+<div class="viewer-toolbar-row viewer-model-row">
+  <div class="model-label" id="modelLabel"></div>
+</div>
 
 <div class="viewer-toolbar-row viewer-tabs-row">
   <div class="viewer-tabs">
-    <button class="btn tab-btn active" id="tab3d">3D просмотр</button>
-    <button class="btn tab-btn" id="tabScheme">Построение</button>
+    <button class="btn tab-btn active" id="tab3d">3D</button>
+    <button class="btn tab-btn" id="tabScheme">Схема</button>
     <button class="btn tab-btn" id="tabPhoto">Фото</button>
     <button class="btn tab-btn" id="tabVideo">Видео</button>
   </div>
+</div>
+
+<!-- Старая nav-строка остаётся в DOM, но скрыта CSS.
+     Пока не удаляем, чтобы не сломать JS на этом шаге. -->
+<div class="viewer-toolbar-row viewer-nav-row">
+  <button class="btn nav-btn" id="prevBtn">Предыдущая</button>
+  <button class="btn nav-btn" id="backBtn">Галерея</button>
+  <button class="btn nav-btn" id="nextBtn">Следующая</button>
 </div>
         <div class="viewer-toolbar-row" id="insetOpacityRow" style="display:none; gap:10px; align-items:center;">
   <div style="font-size:12px; opacity:.75; min-width:110px;">Прозрачность</div>
@@ -763,6 +844,12 @@ body.inset-mode #insetOpacityRow {
   <div id="videoEmpty" class="video-empty" style="display:none;">Нет видео</div> <!-- ADDED -->
 </div>
       </div>
+
+      <div class="viewer-bottom-nav" id="viewerBottomNav">
+  <button class="viewer-bottom-nav-btn arrow" id="bottomPrevBtn" type="button" aria-label="Предыдущая">‹</button>
+  <button class="viewer-bottom-nav-btn" id="bottomBackBtn" type="button">Галерея</button>
+  <button class="viewer-bottom-nav-btn arrow" id="bottomNextBtn" type="button" aria-label="Следующая">›</button>
+</div>
 
       <!-- LOADING OVERLAY -->
       <div id="loading">
