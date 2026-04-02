@@ -35,6 +35,8 @@ let tab3dBtn = null;
 let tabSchemeBtn = null;
 let tabPhotoBtn = null;
 let tabVideoBtn = null;
+let tabsRowEl = null;
+let tabsWrapEl = null;
 
 let active = false;
 let onPlayCb = null;
@@ -118,17 +120,11 @@ function showPlayerMode() {
 }
 
 function hideTabs() {
-  if (tab3dBtn) tab3dBtn.style.display = "none";
-  if (tabSchemeBtn) tabSchemeBtn.style.display = "none";
-  if (tabPhotoBtn) tabPhotoBtn.style.display = "none";
-  if (tabVideoBtn) tabVideoBtn.style.display = "none";
+  if (tabsRowEl) tabsRowEl.style.display = "none";
 }
 
 function showTabs() {
-  if (tab3dBtn) tab3dBtn.style.display = "";
-  if (tabSchemeBtn) tabSchemeBtn.style.display = "";
-  if (tabPhotoBtn) tabPhotoBtn.style.display = "";
-  if (tabVideoBtn) tabVideoBtn.style.display = "";
+  if (tabsRowEl) tabsRowEl.style.display = "";
 }
 
 function showNavPanel() {
@@ -584,6 +580,20 @@ tab3dBtn = refs?.tab3dBtn || null;
 tabSchemeBtn = refs?.tabSchemeBtn || null;
 tabPhotoBtn = refs?.tabPhotoBtn || null;
 tabVideoBtn = refs?.tabVideoBtn || null;
+
+tabsRowEl =
+  tab3dBtn?.closest(".viewer-tabs-row") ||
+  tabSchemeBtn?.closest(".viewer-tabs-row") ||
+  tabPhotoBtn?.closest(".viewer-tabs-row") ||
+  tabVideoBtn?.closest(".viewer-tabs-row") ||
+  null;
+
+tabsWrapEl =
+  tab3dBtn?.closest(".viewer-tabs") ||
+  tabSchemeBtn?.closest(".viewer-tabs") ||
+  tabPhotoBtn?.closest(".viewer-tabs") ||
+  tabVideoBtn?.closest(".viewer-tabs") ||
+  null;
 
   onPlayCb = callbacks.onPlay || null;
   onPauseCb = callbacks.onPause || null;
