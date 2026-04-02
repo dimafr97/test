@@ -47,17 +47,18 @@ onUiVisibility: (hidden) => {
 }
   });
   // VIDEO init (важно: refs совпадают с новым video.js)
-  initVideo(
-    {
-      overlayEl: dom.videoOverlayEl,
-      listEl: dom.videoListEl,
-      emptyEl: dom.videoEmptyEl,
+initVideo(
+  {
+    overlayEl: dom.videoOverlayEl,
+    listEl: dom.videoListEl,
+    emptyEl: dom.videoEmptyEl,
 
-      toolbarEl: dom.viewerToolbarEl,
-      tab3dBtn: dom.tab3dBtn,
-      tabSchemeBtn: dom.tabSchemeBtn,
-      tabVideoBtn: dom.tabVideoBtn
-    },
+    toolbarEl: dom.viewerToolbarEl,
+    tab3dBtn: dom.tab3dBtn,
+    tabSchemeBtn: dom.tabSchemeBtn,
+    tabPhotoBtn: dom.tabPhotoBtn,
+    tabVideoBtn: dom.tabVideoBtn
+  },
     {
 onPlay: () => {
   // НЕ прячем тулбар, иначе navPanel не появится никогда
