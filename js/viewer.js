@@ -77,11 +77,33 @@ onPause: () => {
   setup3dUiAutoHide();
   setupGlobalTouchBlock();
 
-  window.addEventListener("resize", handleResize);
+window.addEventListener("resize", handleResize);
 
-  requestAnimationFrame(() => {
+window.addEventListener("orientationchange", () => {
+  if (activeView === "scheme" || activeView === "photo") {
+    scheduleSchemeRelayout();
+  }
+
+  if (activeView === "video") {
     syncVideoOverlayOffset();
+  }
+});
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", () => {
+    if (activeView === "scheme" || activeView === "photo") {
+      scheduleSchemeRelayout();
+    }
+
+    if (activeView === "video") {
+      syncVideoOverlayOffset();
+    }
   });
+}
+
+requestAnimationFrame(() => {
+  syncVideoOverlayOffset();
+});
 
   showGallery();
 
@@ -96,7 +118,7 @@ function handleResize() {
   threeResize();
 
   if (activeView === "scheme" || activeView === "photo") {
-    resetSchemeView();
+    scheduleSchemeRelayout();
   }
 
   if (activeView === "video") {
@@ -113,6 +135,22 @@ function syncVideoOverlayOffset() {
 
   const topOffset = Math.max(0, Math.ceil(toolbarRect.bottom - wrapperRect.top + 12));
   videoOverlayEl.style.setProperty("--video-overlay-top", `${topOffset}px`);
+}
+
+function scheduleSchemeRelayout() {
+  const rerun = () => {
+    resetSchemeView();
+  };
+
+  requestAnimationFrame(() => {
+    rerun();
+
+    requestAnimationFrame(() => {
+      rerun();
+    });
+  });
+
+  setTimeout(rerun, 120);
 }
 
 function setupUiHandlers() {
