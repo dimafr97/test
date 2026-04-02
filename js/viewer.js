@@ -157,9 +157,9 @@ prevBtn.addEventListener("click", () => {
   openModelById(MODELS[idx].id);
 });
 
-  bottomBackBtn?.addEventListener("click", () => showGallery());
-bottomPrevBtn?.addEventListener("click", () => goPrev());
-bottomNextBtn?.addEventListener("click", () => goNext());
+bottomBackBtn?.addEventListener("click", () => backBtn.click());
+bottomPrevBtn?.addEventListener("click", () => prevBtn.click());
+bottomNextBtn?.addEventListener("click", () => nextBtn.click());
   tab3dBtn.addEventListener("click", () => {
     const meta = getCurrentModelMeta();
     if (!meta || !getModelCapabilities(meta).has3d) return;
