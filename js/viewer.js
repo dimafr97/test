@@ -433,14 +433,17 @@ function setStatus(text) {
 
 function setUiHidden(hidden) {
   const { viewerToolbarEl, statusEl } = dom;
+  const bottomNavEl = document.getElementById("viewerBottomNav");
   if (!viewerToolbarEl || !statusEl) return;
 
   if (hidden) {
     viewerToolbarEl.classList.add("ui-hidden");
     statusEl.classList.add("ui-hidden");
+    bottomNavEl?.classList.add("ui-hidden");
   } else {
     viewerToolbarEl.classList.remove("ui-hidden");
     statusEl.classList.remove("ui-hidden");
+    bottomNavEl?.classList.remove("ui-hidden");
   }
 }
 
