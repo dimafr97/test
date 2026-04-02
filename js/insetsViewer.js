@@ -572,6 +572,11 @@ function configureViewTabsForInset(meta) {
     dom.tabSchemeBtn.classList.toggle("disabled", !hasScheme);
   }
 
+    if (dom.tabPhotoBtn) {
+    dom.tabPhotoBtn.style.display = "none";
+    dom.tabPhotoBtn.classList.add("disabled");
+  }
+
   if (dom.tabVideoBtn) {
     dom.tabVideoBtn.style.display = hasVideo ? "" : "none";
     dom.tabVideoBtn.classList.toggle("disabled", !hasVideo);
@@ -590,9 +595,10 @@ function setViewMode(mode) {
   activeView = mode;
   setInsetViewClass(mode);
 
-  if (dom.tab3dBtn) dom.tab3dBtn.classList.toggle("active", mode === "3d");
-  if (dom.tabSchemeBtn) dom.tabSchemeBtn.classList.toggle("active", mode === "scheme");
-  if (dom.tabVideoBtn) dom.tabVideoBtn.classList.toggle("active", mode === "video");
+if (dom.tab3dBtn) dom.tab3dBtn.classList.toggle("active", mode === "3d");
+if (dom.tabSchemeBtn) dom.tabSchemeBtn.classList.toggle("active", mode === "scheme");
+if (dom.tabPhotoBtn) dom.tabPhotoBtn.classList.toggle("active", false);
+if (dom.tabVideoBtn) dom.tabVideoBtn.classList.toggle("active", mode === "video");
 
   // В 3D canvas должен принимать жесты.
   // В Схемах и Видео — нет, чтобы не мешал overlay.
