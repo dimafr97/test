@@ -89,11 +89,16 @@ export function initInsetsViewer(refs) {
 
   setupUiHandlers();
   setupInset3dUiAutoHide();
-    window.addEventListener("resize", () => {
-    if (activeView === "video") {
-      syncVideoOverlayOffset();
-    }
-  });
+window.addEventListener("resize", () => {
+  if (activeView === "scheme") {
+    deactivateScheme();
+    activateScheme();
+  }
+
+  if (activeView === "video") {
+    syncVideoOverlayOffset();
+  }
+});
 
   requestAnimationFrame(() => {
     syncVideoOverlayOffset();
@@ -606,12 +611,17 @@ if (dom.tabVideoBtn) dom.tabVideoBtn.classList.toggle("active", mode === "video"
   // В Схемах и Видео — нет, чтобы не мешал overlay.
   setCanvasInteractionEnabled(mode === "3d");
 
-  if (dom.schemeOverlayEl) {
-    const isScheme = mode === "scheme";
-    dom.schemeOverlayEl.style.display = isScheme ? "flex" : "none";
-    if (isScheme) activateScheme();
-    else deactivateScheme();
+if (dom.schemeOverlayEl) {
+  const isScheme = mode === "scheme";
+  dom.schemeOverlayEl.style.display = isScheme ? "flex" : "none";
+
+  if (isScheme) {
+    deactivateScheme();
+    activateScheme();
+  } else {
+    deactivateScheme();
   }
+}
 
   if (dom.videoOverlayEl) {
     const isVideo = mode === "video";
