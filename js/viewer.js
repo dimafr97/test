@@ -116,7 +116,17 @@ function syncVideoOverlayOffset() {
 }
 
 function setupUiHandlers() {
-const { backBtn, prevBtn, nextBtn, tab3dBtn, tabSchemeBtn, tabPhotoBtn, tabVideoBtn } = dom;
+const {
+  backBtn,
+  prevBtn,
+  nextBtn,
+  bottomBackBtn,
+  bottomPrevBtn,
+  bottomNextBtn,
+  tab3dBtn,
+  tabSchemeBtn,
+  tabPhotoBtn,
+  tabVideoBtn } = dom;
 
 backBtn.addEventListener("click", () => {
   if (isInsetModeActive()) return; // ✅ во Врезках не трогаем арх-режим
@@ -146,6 +156,10 @@ prevBtn.addEventListener("click", () => {
   idx = (idx - 1 + MODELS.length) % MODELS.length;
   openModelById(MODELS[idx].id);
 });
+
+  bottomBackBtn?.addEventListener("click", () => showGallery());
+bottomPrevBtn?.addEventListener("click", () => goPrev());
+bottomNextBtn?.addEventListener("click", () => goNext());
   tab3dBtn.addEventListener("click", () => {
     const meta = getCurrentModelMeta();
     if (!meta || !getModelCapabilities(meta).has3d) return;
