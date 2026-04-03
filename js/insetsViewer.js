@@ -178,6 +178,25 @@ function exitInsetMode() {
     setCanvasInteractionEnabled(true);
   activeView = "3d";
 }
+
+function hardResetInsetRuntime() {
+  exitInsetMode();
+  threeClearModel();
+
+  controlledMaterials = [];
+  sectionMaterials = [];
+  currentOpacity = 1;
+
+  if (dom?.insetOpacitySlider) {
+    dom.insetOpacitySlider.value = "100";
+  }
+
+  setCadAlpha(0);
+  setSectionEdgesAlpha(0);
+
+  setCanvasInteractionEnabled(true);
+  setUiHidden(false);
+}
 // ✅ Собрать все материалы с нужным именем (например "3") внутри загруженной модели
 function collectMaterialsByName(root, name) {
   const out = [];
@@ -723,30 +742,14 @@ export function openById(id) {
     return;
   }
 
-currentId = id;
-currentMeta = meta;
-enterInsetMode();
+  hardResetInsetRuntime();
+
+  currentId = id;
+  currentMeta = meta;
+  enterInsetMode();
 
 // ✅ новый токен загрузки (всё, что придёт со старым токеном — игнорим)
 const mySeq = ++insetLoadSeq;
-
-// ✅ сразу чистим CAD/контуры/оверлеи от предыдущей врезки
-clearCadOverlay();
-clearSectionEdgesOverlay();
-deactivateScheme();
-deactivateVideo();
-
-// ✅ ВАЖНО: пока грузится новая врезка — временно выключаем тяжёлый pipeline
-setInsetBlendEnabled(false);
-setOutlineEnabled(false);
-setInsetBlendState(0, []);
-setInsetSectionBlendState(0.5, []);
-setOutlineExcludedMaterials([]);
-setCadAlpha(0);
-setSectionEdgesAlpha(0);
-
-// ✅ сцену чистим, но остаёмся в inset-mode по UI
-threeClearModel({ keepInsetPipeline: true });
 
 if (dom?.schemeOverlayEl) dom.schemeOverlayEl.style.display = "none";
 if (dom?.videoOverlayEl) dom.videoOverlayEl.style.display = "none";
