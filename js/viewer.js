@@ -5,7 +5,7 @@
 // Video.js сам управляет: карточки <-> режим плеера + панель в тулбаре
 
 import { MODELS, loadModel, getModelMeta } from "./models.js";
-import { initThree, setModel as threeSetModel, resize as threeResize } from "./threeViewer.js";
+import { initThree, setModel as threeSetModel, clearModel as threeClearModel, resize as threeResize } from "./threeViewer.js";
 import { initScheme, setSchemeImages, activateScheme, deactivateScheme, resetSchemeView } from "./scheme.js";
 import { initVideo, setVideoList, activateVideo, deactivateVideo } from "./video.js";
 
@@ -295,21 +295,23 @@ function openModelById(modelId) {
   const { has3d } = getModelCapabilities(meta);
   setCanvasInteractionEnabled(has3d && chooseStartView(meta) === "3d");
 
-  if (!has3d) {
-    hideLoading();
-    setStatus("");
-    return;
-  }
-
+if (!has3d) {
+  archLoadSeq += 1;
+  threeClearModel();
+  hideLoading();
+  setStatus("");
+  return;
+}
   startModelLoading(meta);
 }
 
 function startModelLoading(meta) {
   if (isInsetModeActive()) return; // ✅ если уже в "Врезках" — не грузим арх
 
-  const mySeq = ++archLoadSeq; // ✅ номер этой загрузки
-  showLoading("Загрузка…", 0);
-  setStatus("Загрузка: " + meta.name);
+const mySeq = ++archLoadSeq; // ✅ номер этой загрузки
+threeClearModel();
+showLoading("Загрузка…", 0);
+setStatus("Загрузка: " + meta.name);
 
   loadModel(meta.id, {
     onProgress: (percent) => {
@@ -431,6 +433,23 @@ if (schemeOverlayEl) {
 }
 
 function showGallery() {
+  archLoadSeq += 1;
+
+  deactivateScheme();
+  deactivateVideo();
+
+  if (dom?.schemeOverlayEl) dom.schemeOverlayEl.style.display = "none";
+  if (dom?.videoOverlayEl) dom.videoOverlayEl.style.display = "none";
+
+  document.body.classList.remove("video-playing");
+
+  threeClearModel();
+
+  currentModelId = null;
+  activeView = "3d";
+  setCanvasInteractionEnabled(true);
+  setUiHidden(false);
+
   const { galleryEl, viewerWrapperEl } = dom;
   if (galleryEl) galleryEl.classList.remove("hidden");
   if (viewerWrapperEl) viewerWrapperEl.classList.remove("visible");
