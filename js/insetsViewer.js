@@ -735,7 +735,7 @@ clearCadOverlay();
 clearSectionEdgesOverlay();
 deactivateScheme();
 deactivateVideo();
-threeClearModel();
+threeClearModel({ keepInsetPipeline: true });
 
 if (dom?.schemeOverlayEl) dom.schemeOverlayEl.style.display = "none";
 if (dom?.videoOverlayEl) dom.videoOverlayEl.style.display = "none";
