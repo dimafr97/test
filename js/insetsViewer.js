@@ -391,7 +391,6 @@ function setupUiHandlers() {
     if (idx < 0) return;
 
     const nextIdx = (idx - 1 + INSETS.length) % INSETS.length;
-    showGallery({ keepViewerOpen: true });
     openById(INSETS[nextIdx].id);
   }, true);
 
@@ -407,7 +406,6 @@ function setupUiHandlers() {
     if (idx < 0) return;
 
     const nextIdx = (idx + 1) % INSETS.length;
-    showGallery({ keepViewerOpen: true });
     openById(INSETS[nextIdx].id);
   }, true);
 
@@ -703,8 +701,7 @@ function setViewMode(mode) {
   }
 }
 
-export function showGallery(options = {}) {
-  const { keepViewerOpen = false } = options;
+export function showGallery() {
   const { galleryEl, viewerWrapperEl, statusEl } = dom;
 
   deactivateScheme();
@@ -720,18 +717,13 @@ export function showGallery(options = {}) {
   document.body.classList.remove("inset-view-scheme");
   document.body.classList.remove("inset-view-video");
 
-if (!keepViewerOpen) {
   galleryEl?.classList.remove("hidden");
   viewerWrapperEl?.classList.remove("visible");
-}
 
   if (statusEl) statusEl.textContent = "";
 
-if (!keepViewerOpen) {
-  currentId = null;
-  currentMeta = null;
-}
-
+currentId = null;
+currentMeta = null;
 activeView = "3d";
 setCanvasInteractionEnabled(true);
 
