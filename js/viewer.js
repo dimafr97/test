@@ -389,6 +389,8 @@ tab3dBtn?.classList.toggle("active", mode === "3d");
 tabSchemeBtn?.classList.toggle("active", mode === "scheme");
 tabPhotoBtn?.classList.toggle("active", mode === "photo");
 tabVideoBtn?.classList.toggle("active", mode === "video");
+  
+setCanvasInteractionEnabled(mode === "3d");
 
   // scheme
 if (schemeOverlayEl) {
