@@ -245,6 +245,15 @@ async function preloadScheme(index, version = loadVersion) {
 
 export function activateScheme() {
   active = true;
+  swipeFollowX = 0;
+  swipeAnimating = false;
+  touchMode = null;
+  isDragging = false;
+
+  if (img) {
+    img.style.transition = "none";
+  }
+
   resetTransform();
   updateSchemeNavButtons();
 }
@@ -261,6 +270,16 @@ export function resetSchemeView() {
 export function deactivateScheme() {
   active = false;
   loadVersion += 1;
+
+  swipeFollowX = 0;
+  swipeAnimating = false;
+  touchMode = null;
+  isDragging = false;
+
+  if (img) {
+    img.style.transition = "none";
+  }
+
   hideUi(false);
   updateSchemeNavButtons();
 
@@ -615,18 +634,27 @@ if (touchMode === "swipe" && e.touches.length === 1) {
           swipeFollowX = dx < 0 ? -rect.width : rect.width;
           applyTransform();
 
-          const onDone = () => {
-            img.removeEventListener("transitionend", onDone);
+const swipeVersion = loadVersion;
 
-            activeIndex = (activeIndex + dir + images.length) % images.length;
-           loadSchemeAtIndex(activeIndex);
+const onDone = () => {
+  img.removeEventListener("transitionend", onDone);
 
+  if (!active || swipeVersion !== loadVersion) {
+    swipeFollowX = 0;
+    swipeAnimating = false;
+    img.style.transition = "none";
+    applyTransform();
+    return;
+  }
 
+  activeIndex = (activeIndex + dir + images.length) % images.length;
+  const version = ++loadVersion;
+  loadSchemeAtIndex(activeIndex, version);
 
-            swipeFollowX = 0;
-            swipeAnimating = false;
-            img.style.transition = "none";
-          };
+  swipeFollowX = 0;
+  swipeAnimating = false;
+  img.style.transition = "none";
+};
 
           img.addEventListener("transitionend", onDone);
         } else {
@@ -636,12 +664,23 @@ if (touchMode === "swipe" && e.touches.length === 1) {
           swipeFollowX = 0;
           applyTransform();
 
-          const onBack = () => {
-            img.removeEventListener("transitionend", onBack);
-            swipeAnimating = false;
-            img.style.transition = "none";
-            applyTransform();
-          };
+const backVersion = loadVersion;
+
+const onBack = () => {
+  img.removeEventListener("transitionend", onBack);
+
+  if (!active || backVersion !== loadVersion) {
+    swipeFollowX = 0;
+    swipeAnimating = false;
+    img.style.transition = "none";
+    applyTransform();
+    return;
+  }
+
+  swipeAnimating = false;
+  img.style.transition = "none";
+  applyTransform();
+};
           img.addEventListener("transitionend", onBack);
         }
       } else {
