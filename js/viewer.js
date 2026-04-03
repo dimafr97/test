@@ -376,47 +376,53 @@ const { has3d, hasScheme, hasPhoto, hasVideo } = getModelCapabilities(meta);
 function setViewMode(mode) {
   activeView = mode;
 
-const {
-  tab3dBtn,
-  tabSchemeBtn,
-  tabPhotoBtn,
-  tabVideoBtn,
-  schemeOverlayEl,
-  videoOverlayEl
-} = dom;
+  const {
+    tab3dBtn,
+    tabSchemeBtn,
+    tabPhotoBtn,
+    tabVideoBtn,
+    schemeOverlayEl,
+    videoOverlayEl
+  } = dom;
 
-tab3dBtn?.classList.toggle("active", mode === "3d");
-tabSchemeBtn?.classList.toggle("active", mode === "scheme");
-tabPhotoBtn?.classList.toggle("active", mode === "photo");
-tabVideoBtn?.classList.toggle("active", mode === "video");
-  
-setCanvasInteractionEnabled(mode === "3d");
-
-  // scheme
-if (schemeOverlayEl) {
   const isImageMode = mode === "scheme" || mode === "photo";
-  const meta = getCurrentModelMeta();
+  const isVideoMode = mode === "video";
+  const is3dMode = mode === "3d";
 
-  schemeOverlayEl.style.display = isImageMode ? "flex" : "none";
+  tab3dBtn?.classList.toggle("active", is3dMode);
+  tabSchemeBtn?.classList.toggle("active", mode === "scheme");
+  tabPhotoBtn?.classList.toggle("active", mode === "photo");
+  tabVideoBtn?.classList.toggle("active", isVideoMode);
 
-  if (isImageMode && meta) {
-    if (mode === "scheme") {
-      setSchemeImages(Array.isArray(meta.schemes) ? meta.schemes : []);
+  // ВАЖНО: только 3D имеет право принимать pointer events от canvas
+  setCanvasInteractionEnabled(is3dMode);
+
+  // IMAGE MODE: Схема / Фото
+  if (schemeOverlayEl) {
+    schemeOverlayEl.style.display = isImageMode ? "flex" : "none";
+
+    if (isImageMode) {
+      const meta = getCurrentModelMeta();
+
+      if (meta) {
+        if (mode === "scheme") {
+          setSchemeImages(Array.isArray(meta.schemes) ? meta.schemes : []);
+        } else {
+          setSchemeImages(Array.isArray(meta.photos) ? meta.photos : []);
+        }
+      }
+
+      activateScheme();
     } else {
-      setSchemeImages(Array.isArray(meta.photos) ? meta.photos : []);
+      deactivateScheme();
     }
-
-    activateScheme();
-  } else {
-    deactivateScheme();
   }
-}
-  // video
-  if (videoOverlayEl) {
-    const isVideo = mode === "video";
-    videoOverlayEl.style.display = isVideo ? "block" : "none";
 
-    if (isVideo) {
+  // VIDEO MODE
+  if (videoOverlayEl) {
+    videoOverlayEl.style.display = isVideoMode ? "block" : "none";
+
+    if (isVideoMode) {
       syncVideoOverlayOffset();
       activateVideo();
     } else {
@@ -425,11 +431,8 @@ if (schemeOverlayEl) {
     }
   }
 
-  // UI rules:
-  // - в схеме: UI управляется scheme.js
-  // - в 3d: UI показываем
-  // - при уходе из scheme: возвращаем UI
-  if (mode !== "scheme" && mode !== "photo") {
+  // Вне image-mode UI должен вернуться
+  if (!isImageMode) {
     setUiHidden(false);
   }
 }
