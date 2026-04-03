@@ -735,6 +735,17 @@ clearCadOverlay();
 clearSectionEdgesOverlay();
 deactivateScheme();
 deactivateVideo();
+
+// ✅ ВАЖНО: пока грузится новая врезка — временно выключаем тяжёлый pipeline
+setInsetBlendEnabled(false);
+setOutlineEnabled(false);
+setInsetBlendState(0, []);
+setInsetSectionBlendState(0.5, []);
+setOutlineExcludedMaterials([]);
+setCadAlpha(0);
+setSectionEdgesAlpha(0);
+
+// ✅ сцену чистим, но остаёмся в inset-mode по UI
 threeClearModel({ keepInsetPipeline: true });
 
 if (dom?.schemeOverlayEl) dom.schemeOverlayEl.style.display = "none";
@@ -785,6 +796,9 @@ loadModel(meta.sourceId || meta.id, {
   if (!document.body.classList.contains("inset-mode")) return;
     // ✅ 1) сначала применяем цвета сечений (если они заданы в meta)
     applyInsetColors(root, meta);
+    // ✅ Теперь новая модель уже готова — возвращаем тяжёлый pipeline
+setInsetBlendEnabled(true);
+setOutlineEnabled(true);
 
     // ✅ 2) показываем модель в threeViewer
 threeSetModel(root);
