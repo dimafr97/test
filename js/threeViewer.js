@@ -507,7 +507,20 @@ export function clearCadOverlay() {
 
   for (const child of cadGroup.children) {
     child.geometry?.dispose?.();
-    child.material?.dispose?.();
+
+    const mat = child.material;
+
+    if (Array.isArray(mat)) {
+      for (const m of mat) {
+        if (!m) continue;
+        if (m === cadLineMat) continue; // общий CAD-материал НЕ диспозим
+        m.dispose?.();
+      }
+    } else if (mat) {
+      if (mat !== cadLineMat) {
+        mat.dispose?.();
+      }
+    }
   }
 
   cadGroup.clear();
