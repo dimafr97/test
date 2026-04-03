@@ -171,6 +171,15 @@ export function setModel(root) {
   fitCameraToModel(root);
 }
 
+export function clearModel() {
+  if (!scene) return;
+
+  if (currentModel) {
+    scene.remove(currentModel);
+    currentModel = null;
+  }
+}
+
 function rebuildOutlinesForModel(root) {
   clearOutlines();
   if (!outlineGroup || !root) return;
