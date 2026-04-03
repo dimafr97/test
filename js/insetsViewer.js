@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import {
   setModel as threeSetModel,
+  clearModel as threeClearModel,
   setInsetBlendEnabled,
   setInsetBlendState,
   setInsetSectionBlendState,
@@ -699,16 +700,17 @@ export function showGallery() {
 
   if (statusEl) statusEl.textContent = "";
 
-  currentId = null;
-  currentMeta = null;
-  activeView = "3d";
-  setCanvasInteractionEnabled(true);
+currentId = null;
+currentMeta = null;
+activeView = "3d";
+setCanvasInteractionEnabled(true);
 
-  exitInsetMode();
+exitInsetMode();
+threeClearModel();
 
-  controlledMaterials = [];
-  currentOpacity = 1;
-  sectionMaterials = [];
+controlledMaterials = [];
+currentOpacity = 1;
+sectionMaterials = [];
 }
 
 export function openById(id) {
@@ -730,11 +732,11 @@ clearCadOverlay();
 clearSectionEdgesOverlay();
 deactivateScheme();
 deactivateVideo();
+threeClearModel();
 
 if (dom?.schemeOverlayEl) dom.schemeOverlayEl.style.display = "none";
 if (dom?.videoOverlayEl) dom.videoOverlayEl.style.display = "none";
 document.body.classList.remove("video-playing");
-
 // ✅ показываем viewer
 dom.galleryEl?.classList.add("hidden");
 dom.viewerWrapperEl?.classList.add("visible");
