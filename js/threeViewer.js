@@ -171,12 +171,30 @@ export function setModel(root) {
   fitCameraToModel(root);
 }
 
-export function clearModel() {
+export function clearModel(options = {}) {
+  const { keepInsetPipeline = false } = options;
+
   if (!scene) return;
 
   if (currentModel) {
     scene.remove(currentModel);
     currentModel = null;
+  }
+
+  clearOutlines();
+  clearCadOverlay();
+  clearSectionEdgesOverlay();
+
+  setCadAlpha(0);
+  setSectionEdgesAlpha(0);
+
+  setInsetBlendState(0, []);
+  setInsetSectionBlendState(0.5, []);
+  setOutlineExcludedMaterials([]);
+
+  if (!keepInsetPipeline) {
+    setOutlineEnabled(false);
+    setInsetBlendEnabled(false);
   }
 }
 
