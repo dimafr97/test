@@ -45,7 +45,7 @@ let rtB = null;
 let rtC = null;
 let rtD = null;
 let rtN = null; // normals + depth (для контуров)
-let rtSamples = 4; // 4 / 2 / 0 — только для RenderTarget'ов inset-blend
+let rtSamples = 0; // MSAA для inset RT отключён
 let postScene = null;
 let postCam = null;
 let postQuad = null;
@@ -681,10 +681,7 @@ if (!rtN || rtN.width !== w || rtN.height !== h) {
   rtN.depthTexture = new THREE.DepthTexture(w, h);
   rtN.depthTexture.type = THREE.UnsignedShortType;
 }
-const isAndroid = /Android/i.test(navigator.userAgent);
-
-// На Android MSAA в render targets ломает depth и даёт 1282
-const samples = isAndroid ? 0 : rtSamples;
+const samples = rtSamples;
 
 rtA.samples = samples;
 rtB.samples = samples;
