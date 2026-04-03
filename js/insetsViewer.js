@@ -641,32 +641,34 @@ function setViewMode(mode) {
   activeView = mode;
   setInsetViewClass(mode);
 
-if (dom.tab3dBtn) dom.tab3dBtn.classList.toggle("active", mode === "3d");
-if (dom.tabSchemeBtn) dom.tabSchemeBtn.classList.toggle("active", mode === "scheme");
-if (dom.tabPhotoBtn) dom.tabPhotoBtn.classList.toggle("active", false);
-if (dom.tabVideoBtn) dom.tabVideoBtn.classList.toggle("active", mode === "video");
+  const is3dMode = mode === "3d";
+  const isSchemeMode = mode === "scheme";
+  const isVideoMode = mode === "video";
 
-  // В 3D canvas должен принимать жесты.
-  // В Схемах и Видео — нет, чтобы не мешал overlay.
-  setCanvasInteractionEnabled(mode === "3d");
+  if (dom.tab3dBtn) dom.tab3dBtn.classList.toggle("active", is3dMode);
+  if (dom.tabSchemeBtn) dom.tabSchemeBtn.classList.toggle("active", isSchemeMode);
+  if (dom.tabPhotoBtn) dom.tabPhotoBtn.classList.toggle("active", false);
+  if (dom.tabVideoBtn) dom.tabVideoBtn.classList.toggle("active", isVideoMode);
 
-if (dom.schemeOverlayEl) {
-  const isScheme = mode === "scheme";
-  dom.schemeOverlayEl.style.display = isScheme ? "flex" : "none";
+  // Только 3D принимает pointer events от canvas
+  setCanvasInteractionEnabled(is3dMode);
 
-  if (isScheme) {
-    deactivateScheme();
-    activateScheme();
-  } else {
-    deactivateScheme();
+  // SCHEME
+  if (dom.schemeOverlayEl) {
+    dom.schemeOverlayEl.style.display = isSchemeMode ? "flex" : "none";
+
+    if (isSchemeMode) {
+      activateScheme();
+    } else {
+      deactivateScheme();
+    }
   }
-}
 
+  // VIDEO
   if (dom.videoOverlayEl) {
-    const isVideo = mode === "video";
-    dom.videoOverlayEl.style.display = isVideo ? "block" : "none";
+    dom.videoOverlayEl.style.display = isVideoMode ? "block" : "none";
 
-    if (isVideo) {
+    if (isVideoMode) {
       syncVideoOverlayOffset();
       activateVideo();
     } else {
@@ -675,9 +677,10 @@ if (dom.schemeOverlayEl) {
     }
   }
 
-  if (mode !== "scheme") {
+  if (!isSchemeMode) {
     setUiHidden(false);
   }
+}
 }
 export function showGallery() {
   const { galleryEl, viewerWrapperEl, statusEl } = dom;
