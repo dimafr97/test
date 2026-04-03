@@ -37,6 +37,7 @@ let navBound = false;
 
 let images = [];  // массив URL схем
 let activeIndex = 0;
+let loadVersion = 0;
 
 
 // Масштаб
@@ -154,43 +155,61 @@ export function initScheme({
 export async function setSchemeImages(urlList) {
   images = Array.isArray(urlList) ? urlList.slice() : [];
   activeIndex = 0;
+  loadVersion += 1;
+  const version = loadVersion;
   updateSchemeNavButtons();
 
   if (!images.length || !img) return;
 
-  await loadSchemeAtIndex(0);
+  await loadSchemeAtIndex(0, version);
 }
-async function loadSchemeAtIndex(index) {
+async function loadSchemeAtIndex(index, version = loadVersion) {
   if (!images[index] || !img) return;
 
-  // ОСВОБОЖДАЕМ ПРЕДЫДУЩУЮ СХЕМУ
-  if (currentSchemeBlobUrl) {
-    URL.revokeObjectURL(currentSchemeBlobUrl);
-    currentSchemeBlobUrl = null;
-  }
-
   try {
+    let nextBlobUrl = null;
+    let reusedPreload = false;
+
     // если схема уже предзагружена — используем её
-if (preloadedScheme.index === index && preloadedScheme.blobUrl) {
-  currentSchemeBlobUrl = preloadedScheme.blobUrl;
-  preloadedScheme.index = null;
-  preloadedScheme.blobUrl = null;
-} else {
-  const blob = await cachedFetch(images[index]);
-  currentSchemeBlobUrl = URL.createObjectURL(blob);
-}
+    if (preloadedScheme.index === index && preloadedScheme.blobUrl) {
+      nextBlobUrl = preloadedScheme.blobUrl;
+      preloadedScheme.index = null;
+      preloadedScheme.blobUrl = null;
+      reusedPreload = true;
+    } else {
+      const blob = await cachedFetch(images[index]);
 
-activeIndex = index;
-img.src = currentSchemeBlobUrl;
+      // пока грузили — режим/набор картинок уже мог поменяться
+      if (version !== loadVersion) return;
 
-// preload следующей схемы
-preloadScheme((index + 1) % images.length);
+      nextBlobUrl = URL.createObjectURL(blob);
+    }
+
+    if (version !== loadVersion) {
+      if (nextBlobUrl && !reusedPreload) {
+        URL.revokeObjectURL(nextBlobUrl);
+      }
+      return;
+    }
+
+    // освобождаем только когда новая картинка уже готова
+    if (currentSchemeBlobUrl) {
+      URL.revokeObjectURL(currentSchemeBlobUrl);
+      currentSchemeBlobUrl = null;
+    }
+
+    currentSchemeBlobUrl = nextBlobUrl;
+    activeIndex = index;
+    img.src = currentSchemeBlobUrl;
+
+    // preload следующей схемы
+    preloadScheme((index + 1) % images.length, version);
   } catch (err) {
     console.error("Scheme load failed:", images[index], err);
   }
 }
 
-async function preloadScheme(index) {
+async function preloadScheme(index, version = loadVersion) {
   if (!images[index]) return;
   if (preloadedScheme.index === index) return;
 
@@ -202,7 +221,15 @@ async function preloadScheme(index) {
 
   try {
     const blob = await cachedFetch(images[index]);
+
+    if (version !== loadVersion) return;
+
     const blobUrl = URL.createObjectURL(blob);
+
+    if (version !== loadVersion) {
+      URL.revokeObjectURL(blobUrl);
+      return;
+    }
 
     preloadedScheme.index = index;
     preloadedScheme.blobUrl = blobUrl;
@@ -233,6 +260,7 @@ export function resetSchemeView() {
 
 export function deactivateScheme() {
   active = false;
+  loadVersion += 1;
   hideUi(false);
   updateSchemeNavButtons();
 
@@ -421,13 +449,15 @@ function updateSchemeNavButtons() {
 function showPrevScheme() {
   if (!images.length || images.length <= 1) return;
   activeIndex = (activeIndex - 1 + images.length) % images.length;
-  loadSchemeAtIndex(activeIndex);
+  const version = ++loadVersion;
+  loadSchemeAtIndex(activeIndex, version);
 }
 
 function showNextScheme() {
   if (!images.length || images.length <= 1) return;
   activeIndex = (activeIndex + 1) % images.length;
-  loadSchemeAtIndex(activeIndex);
+  const version = ++loadVersion;
+  loadSchemeAtIndex(activeIndex, version);
 }
 function handleSwipe() {
   if (images.length <= 1) return;
@@ -441,9 +471,8 @@ function handleSwipe() {
   const dir = dx < 0 ? 1 : -1;
   activeIndex = (activeIndex + dir + images.length) % images.length;
 
- loadSchemeAtIndex(activeIndex);
-
-
+  const version = ++loadVersion;
+  loadSchemeAtIndex(activeIndex, version);
 }
 
 
