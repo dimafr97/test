@@ -681,7 +681,7 @@ function setViewMode(mode) {
     setUiHidden(false);
   }
 }
-}
+
 export function showGallery() {
   const { galleryEl, viewerWrapperEl, statusEl } = dom;
 
