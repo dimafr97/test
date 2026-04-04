@@ -236,41 +236,117 @@ body {
 
 /* Верхний главный контрол — единый segmented */
 .viewer-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
-  width: 100%;
-  max-width: 520px;
+  --seg-x: 0px;
+  --seg-w: 0px;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+
+  width: auto;
+  max-width: min(92vw, 720px);
   margin: 0 auto;
   padding: 4px;
+
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.42);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 10px 30px rgba(0,0,0,0.24);
+
+  overflow: hidden;
+}
+
+.viewer-tabs::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  bottom: 4px;
+  width: var(--seg-w);
+  transform: translateX(var(--seg-x));
+  border-radius: 999px;
+
+  background: linear-gradient(90deg, rgba(255,255,255,0.96), rgba(140,140,255,0.92));
+  box-shadow:
+    0 8px 18px rgba(125,125,255,0.16),
+    inset 0 1px 0 rgba(255,255,255,0.55);
+
+  transition:
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.28s ease,
+    opacity 0.2s ease;
+
+  z-index: 0;
 }
 
 .tab-btn {
-  padding: 9px 8px;
-  font-size: 13px;
+  position: relative;
+  z-index: 1;
+
+  min-width: 132px;
+  height: 40px;
+  padding: 0 18px;
+
   border-radius: 999px;
-  opacity: 0.95;
-  min-width: 0;
-  text-align: center;
   background: transparent;
   border: none;
   box-shadow: none;
+
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
   white-space: nowrap;
+  text-align: center;
+
+  color: rgba(255,255,255,0.84);
+  opacity: 1;
+
+  transition:
+    color 0.22s ease,
+    opacity 0.22s ease,
+    transform 0.18s ease;
+}
+
+.tab-btn:hover {
+  color: rgba(255,255,255,0.96);
+}
+
+.tab-btn:active {
+  transform: scale(0.985);
 }
 
 .tab-btn.active {
-  background: linear-gradient(90deg, #ffffff, #8888ff);
+  background: transparent;
   color: #050506;
   border-color: transparent;
 }
 
 .tab-btn.disabled {
-  opacity: 0.25;
+  opacity: 0.28;
   pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .viewer-tabs {
+    max-width: calc(100vw - 20px);
+    padding: 4px;
+    gap: 2px;
+  }
+
+  .tab-btn {
+    min-width: 0;
+    flex: 1 1 auto;
+    height: 42px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
 }
 
 /* Старую верхнюю nav-строку скрываем, она больше не нужна */
@@ -876,6 +952,92 @@ body.inset-mode #insetOpacityRow {
      ============================ -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script type="module" src="./js/app.js"></script>
+  <script>
+(function () {
+  function isVisibleButton(el) {
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    return style.display !== "none" && style.visibility !== "hidden";
+  }
+
+  function updateSegmentedControl(segmented) {
+    if (!segmented) return;
+
+    const buttons = Array.from(segmented.querySelectorAll(".tab-btn"))
+      .filter(isVisibleButton);
+
+    if (!buttons.length) {
+      segmented.style.setProperty("--seg-w", "0px");
+      segmented.style.setProperty("--seg-x", "0px");
+      return;
+    }
+
+    const activeBtn =
+      buttons.find((btn) => btn.classList.contains("active")) || buttons[0];
+
+    const wrapRect = segmented.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+
+    const x = btnRect.left - wrapRect.left;
+    const w = btnRect.width;
+
+    segmented.style.setProperty("--seg-x", x + "px");
+    segmented.style.setProperty("--seg-w", w + "px");
+  }
+
+  function updateAllSegmentedControls() {
+    document.querySelectorAll(".viewer-tabs").forEach(updateSegmentedControl);
+  }
+
+  function bindSegmentedControl(segmented) {
+    if (!segmented || segmented.__segmentedBound) return;
+    segmented.__segmentedBound = true;
+
+    const observer = new MutationObserver(() => {
+      requestAnimationFrame(updateAllSegmentedControls);
+    });
+
+    observer.observe(segmented, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["class", "style"]
+    });
+
+    segmented.__segmentedObserver = observer;
+    requestAnimationFrame(() => updateSegmentedControl(segmented));
+  }
+
+  function initSegmentedControls() {
+    document.querySelectorAll(".viewer-tabs").forEach(bindSegmentedControl);
+    updateAllSegmentedControls();
+  }
+
+  window.addEventListener("resize", () => {
+    requestAnimationFrame(updateAllSegmentedControls);
+  });
+
+  window.addEventListener("orientationchange", () => {
+    setTimeout(updateAllSegmentedControls, 120);
+  });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => {
+      requestAnimationFrame(updateAllSegmentedControls);
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initSegmentedControls();
+
+    setTimeout(updateAllSegmentedControls, 50);
+    setTimeout(updateAllSegmentedControls, 200);
+    setTimeout(updateAllSegmentedControls, 500);
+  });
+
+  window.updateAllSegmentedControls = updateAllSegmentedControls;
+})();
+</script>
 
 </body>
 </html>
