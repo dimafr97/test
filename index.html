@@ -984,7 +984,7 @@ body.inset-mode #insetOpacityRow {
     const wrapRect = segmented.getBoundingClientRect();
     const btnRect = activeBtn.getBoundingClientRect();
 
-const x = Math.round(btnRect.left - wrapRect.left);
+const x = Math.round(btnRect.left - wrapRect.left - 4);
 const w = Math.round(btnRect.width);
 
     segmented.style.setProperty("--seg-x", x + "px");
