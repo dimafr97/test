@@ -9,6 +9,7 @@
 // НЕ содержит three.js, viewer, UI вкладок и т.п.
 
 import { MODELS } from "./models.js";
+import { cachedFetch } from "./cache/cachedFetch.js";
 
 /**
  * Универсальный рендер галереи для любого списка карточек.
@@ -18,6 +19,45 @@ import { MODELS } from "./models.js";
  * @param {object} options
  * @param {function(string):void} options.onSelect — вызывается при клике по карточке
  */
+function resolvePreviewUrl(preview) {
+  if (!preview) return "";
+
+  const isAbsolute =
+    /^https?:\/\//i.test(preview) ||
+    preview.startsWith("/") ||
+    preview.startsWith("data:");
+
+  return isAbsolute
+    ? preview
+    : `https://api.apparchi.ru/?path=${encodeURIComponent(preview)}`;
+}
+
+function warmPreview(preview) {
+  const url = resolvePreviewUrl(preview);
+  if (!url) return;
+
+  cachedFetch(url).catch(() => {});
+}
+
+async function applyCachedPreview(img, preview) {
+  const url = resolvePreviewUrl(preview);
+  if (!url || !img) return;
+
+  try {
+    const blob = await cachedFetch(url);
+    const objectUrl = URL.createObjectURL(blob);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    img.src = objectUrl;
+  } catch (e) {
+    // fallback на прямой URL, если вдруг что-то пошло не так
+    img.src = url;
+  }
+}
+
 export function renderGallery(containerEl, items, { onSelect }) {
   if (!containerEl) {
     console.error("renderGallery: containerEl is null");
@@ -42,22 +82,17 @@ export function renderGallery(containerEl, items, { onSelect }) {
 if (m.preview) {
   const img = document.createElement("img");
 
-  // Если preview уже абсолютный URL — используем как есть.
-  // Если это относительный путь вроде "textures/1/preview.png",
-  // прогоняем через тот же защищённый API-формат.
-  const isAbsolute =
-    /^https?:\/\//i.test(m.preview) ||
-    m.preview.startsWith("/") ||
-    m.preview.startsWith("data:");
-
-  img.src = isAbsolute
-    ? m.preview
-    : `https://api.apparchi.ru/?path=${encodeURIComponent(m.preview)}`;
-
   img.alt = m.name || "";
   img.loading = "lazy";
   img.decoding = "async";
+
   thumb.appendChild(img);
+
+  // сначала ставим превью через кэш
+  applyCachedPreview(img, m.preview);
+
+  // и параллельно прогреваем кэш на будущее
+  warmPreview(m.preview);
 } else {
       thumb.textContent = m.thumbLetter || (m.name ? m.name.charAt(0) : "?");
     }
