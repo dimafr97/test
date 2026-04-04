@@ -240,9 +240,11 @@ body {
   --seg-w: 0px;
 
   position: relative;
-  display: inline-flex;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(96px, 1fr);
   align-items: center;
-  gap: 2px;
+  gap: 0;
 
   width: auto;
   max-width: min(92vw, 720px);
@@ -260,43 +262,50 @@ body {
     0 10px 30px rgba(0,0,0,0.24);
 
   overflow: hidden;
+  isolation: isolate;
 }
 
 .viewer-tabs::before {
   content: "";
   position: absolute;
-  left: 4px;
   top: 4px;
-  bottom: 4px;
+  left: 4px;
+  height: calc(100% - 8px);
   width: var(--seg-w);
   transform: translateX(var(--seg-x));
   border-radius: 999px;
 
-  background: linear-gradient(90deg, rgba(255,255,255,0.96), rgba(140,140,255,0.92));
+  background: linear-gradient(90deg, rgba(255,255,255,0.97), rgba(140,140,255,0.92));
   box-shadow:
-    0 8px 18px rgba(125,125,255,0.16),
-    inset 0 1px 0 rgba(255,255,255,0.55);
+    0 6px 14px rgba(125,125,255,0.14),
+    inset 0 1px 0 rgba(255,255,255,0.42);
 
   transition:
     transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
-    width 0.28s ease,
-    opacity 0.2s ease;
+    width 0.28s ease;
 
   z-index: 0;
+  pointer-events: none;
 }
 
 .tab-btn {
   position: relative;
   z-index: 1;
 
-  min-width: 132px;
-  height: 40px;
+  min-width: 96px;
+  height: 42px;
   padding: 0 18px;
 
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
   border-radius: 999px;
-  background: transparent;
-  border: none;
-  box-shadow: none;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 
   font-size: 14px;
   font-weight: 500;
@@ -323,9 +332,8 @@ body {
 }
 
 .tab-btn.active {
-  background: transparent;
+  background: transparent !important;
   color: #050506;
-  border-color: transparent;
 }
 
 .tab-btn.disabled {
@@ -336,13 +344,11 @@ body {
 @media (max-width: 640px) {
   .viewer-tabs {
     max-width: calc(100vw - 20px);
-    padding: 4px;
-    gap: 2px;
+    grid-auto-columns: minmax(84px, 1fr);
   }
 
   .tab-btn {
-    min-width: 0;
-    flex: 1 1 auto;
+    min-width: 84px;
     height: 42px;
     padding: 0 14px;
     font-size: 13px;
@@ -978,8 +984,8 @@ body.inset-mode #insetOpacityRow {
     const wrapRect = segmented.getBoundingClientRect();
     const btnRect = activeBtn.getBoundingClientRect();
 
-    const x = btnRect.left - wrapRect.left;
-    const w = btnRect.width;
+const x = Math.round(btnRect.left - wrapRect.left);
+const w = Math.round(btnRect.width);
 
     segmented.style.setProperty("--seg-x", x + "px");
     segmented.style.setProperty("--seg-w", w + "px");
