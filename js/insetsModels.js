@@ -12,14 +12,12 @@ const RAW_INSETS = [
   desc: "Схемы и видео",
   preview: "textures/preview/preview4.webp",
 
-  // Для нулевой врезки 3D нет, поэтому sourcePath НЕ указываем
-  schemes: [
-    "textures/doric/s1.jpg",
-    "textures/doric/s2.jpg"
-  ],
-
 video: [
-  `https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/doric/v1.mp4`
+  `https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/0/vrez/v1.mp4`,
+  `https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/0/vrez/v2.mp4`,
+  `https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/0/vrez/v3.mp4`,
+  `https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/0/vrez/v5.mp4`,
+  `https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/0/vrez/v8.mp4`,
 ],
 },
   
