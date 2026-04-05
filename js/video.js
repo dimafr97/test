@@ -278,66 +278,51 @@ function ensureNavPanel() {
 
   navPanel = document.createElement("div");
   navPanel.id = "videoNavPanel";
-  navPanel.style.cssText = `
-    display: none;
-    width: 100%;
-    gap: 10px;
-    align-items: center;
-    justify-content: space-between;
-  `;
+  navPanel.className = "video-nav-panel";
 
-  // Левая кнопка "к карточкам"
-  btnBack = document.createElement("button");
-  btnBack.type = "button";
-  btnBack.textContent = "⬅ К карточкам";
-  btnBack.style.cssText = `
-    appearance: none;
-    border: 1px solid rgba(255,255,255,0.18);
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.92);
-    border-radius: 999px;
-    padding: 10px 12px;
-    font: 600 13px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
-    flex: 0 0 auto;
-  `;
+  const left = document.createElement("div");
+  left.className = "video-nav-left";
 
   const right = document.createElement("div");
-  right.style.cssText = `
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    justify-content: flex-end;
-    flex: 0 0 auto;
+  right.className = "video-nav-right";
+
+  btnBack = document.createElement("button");
+  btnBack.type = "button";
+  btnBack.className = "video-nav-btn back";
+  btnBack.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 18l-6-6 6-6"></path>
+    </svg>
+    <span class="video-nav-btn-label">К карточкам</span>
   `;
 
   btnPrev = document.createElement("button");
   btnPrev.type = "button";
-  btnPrev.textContent = "⏮";
-  btnPrev.style.cssText = `
-    width: 44px; height: 44px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.18);
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.92);
-    font: 700 16px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  btnPrev.className = "video-nav-btn icon";
+  btnPrev.setAttribute("aria-label", "Предыдущее видео");
+  btnPrev.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+      <path d="M11 6v12L2.5 12 11 6z"></path>
+      <path d="M21 6v12l-8.5-6L21 6z"></path>
+    </svg>
   `;
 
   btnNext = document.createElement("button");
   btnNext.type = "button";
-  btnNext.textContent = "⏭";
-  btnNext.style.cssText = `
-    width: 44px; height: 44px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.18);
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.92);
-    font: 700 16px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial;
+  btnNext.className = "video-nav-btn icon";
+  btnNext.setAttribute("aria-label", "Следующее видео");
+  btnNext.innerHTML = `
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+      <path d="M13 6v12l8.5-6L13 6z"></path>
+      <path d="M3 6v12l8.5-6L3 6z"></path>
+    </svg>
   `;
 
+  left.appendChild(btnBack);
   right.appendChild(btnPrev);
   right.appendChild(btnNext);
 
-  navPanel.appendChild(btnBack);
+  navPanel.appendChild(left);
   navPanel.appendChild(right);
 
   // Вставляем панель внутрь toolbar (там где табы)
