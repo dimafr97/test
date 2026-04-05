@@ -29,13 +29,15 @@ export const MODELS = [
 
     // ВАЖНО: у нулевой карточки нет url/source для 3D
     schemes: [
-      `${BASE}textures/doric/s1.jpg`,
-      `${BASE}textures/doric/s2.jpg`
+      `${BASE}textures/0/arch/s1.jpg`,
     ],
 
-    video: [
-      "https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/doric/v1.mp4"
-    ]
+video: [
+  "https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/0/arch/v1.mp4",
+  "https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/0/arch/v2.mp4",
+  "https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/0/arch/v3.mp4",
+  "https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/0/arch/v4.mp4",
+]
   },
   
   {
