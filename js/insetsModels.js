@@ -66,6 +66,18 @@ cad: {
   name: "Горизонтальная треугольная призма и конус",
   desc: "Врезка наклонной плоскости в тело вращения",
     preview: "textures/2/preview.png",
+  schemes: [
+    "textures/2/S1.jpg",
+    "textures/2/S2.jpg",
+    "textures/2/S3.jpg",
+    "textures/2/S4.jpg",
+    "textures/2/S5.jpg",
+    "textures/2/SS1.jpg",
+    "textures/2/SS2.jpg",
+    "textures/2/SS3.jpg",
+    "textures/2/SS4.jpg",
+    "textures/2/SS5.jpg",
+ ],
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/2.3.gltf",
