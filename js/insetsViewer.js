@@ -657,6 +657,7 @@ function configureViewTabsForInset(meta) {
 }
 
 function setViewMode(mode) {
+  const prevView = activeView;
   activeView = mode;
   setInsetViewClass(mode);
 
@@ -678,7 +679,7 @@ function setViewMode(mode) {
 
     if (isSchemeMode) {
       activateScheme();
-    } else {
+    } else if (prevView === "scheme") {
       deactivateScheme();
     }
   }
@@ -690,7 +691,7 @@ function setViewMode(mode) {
     if (isVideoMode) {
       syncVideoOverlayOffset();
       activateVideo();
-    } else {
+    } else if (prevView === "video") {
       deactivateVideo();
       document.body.classList.remove("video-playing");
     }
