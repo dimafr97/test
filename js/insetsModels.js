@@ -27,8 +27,11 @@ video: [
   desc: "Врезка прямой плоскости в тело вращения",
   preview: "textures/1/preview.png",
   schemes: [
-    "textures/doric/s1.jpg",
-    "textures/doric/s2.jpg"
+    "textures/1/S1.jpg",
+    "textures/1/S2.jpg",
+    "textures/1/S3.jpg",
+    "textures/1/S4.jpg",
+    "textures/1/S5.jpg",
   ],
 
   // путь в защищённом API (после ?path=)
