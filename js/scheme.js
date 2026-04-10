@@ -78,14 +78,6 @@ let onUiVisibilityInset = null;
 // Текущий режим вкладки: активирована схема или нет
 let active = false;
 
-function clearCurrentSchemeImage() {
-  if (!img) return;
-
-  img.style.transition = "none";
-  img.style.visibility = "hidden";
-  img.style.transform = "translate(0px, 0px) scale(1)";
-}
-
 
 /* ============================================================
    ИНИЦИАЛИЗАЦИЯ
@@ -123,14 +115,11 @@ export function initScheme({
 
   // На загрузку картинки — сброс трансформа
   if (boundImg !== img) {
-img.addEventListener("load", () => {
-  img.style.visibility = "visible";
-
-  if (!active) return;
-
-  resetTransform();
-  updateSchemeNavButtons();
-});
+    img.addEventListener("load", () => {
+      if (!active) return;
+      resetTransform();
+      updateSchemeNavButtons();
+    });
     boundImg = img;
   }
 
@@ -168,17 +157,6 @@ export async function setSchemeImages(urlList) {
   activeIndex = 0;
   loadVersion += 1;
   const version = loadVersion;
-
-  // сразу очищаем старую картинку прошлой модели
-  clearCurrentSchemeImage();
-
-  // чистим preload старого набора схем
-  if (preloadedScheme.blobUrl) {
-    URL.revokeObjectURL(preloadedScheme.blobUrl);
-    preloadedScheme.blobUrl = null;
-    preloadedScheme.index = null;
-  }
-
   updateSchemeNavButtons();
 
   if (!images.length || !img) return;
@@ -214,19 +192,19 @@ async function loadSchemeAtIndex(index, version = loadVersion) {
       return;
     }
 
-const prevBlobUrl = currentSchemeBlobUrl;
+    // освобождаем только когда новая картинка уже готова
+    if (currentSchemeBlobUrl) {
+      URL.revokeObjectURL(currentSchemeBlobUrl);
+      currentSchemeBlobUrl = null;
+    }
 
-currentSchemeBlobUrl = nextBlobUrl;
-activeIndex = index;
-img.src = currentSchemeBlobUrl;
+    currentSchemeBlobUrl = nextBlobUrl;
+    activeIndex = index;
+    img.src = currentSchemeBlobUrl;
 
-// старый blob освобождаем только после подстановки нового src
-if (prevBlobUrl && prevBlobUrl !== currentSchemeBlobUrl) {
-  URL.revokeObjectURL(prevBlobUrl);
-}
-
-// preload следующей схемы
-preloadScheme((index + 1) % images.length, version);  } catch (err) {
+    // preload следующей схемы
+    preloadScheme((index + 1) % images.length, version);
+  } catch (err) {
     console.error("Scheme load failed:", images[index], err);
   }
 }
@@ -298,27 +276,22 @@ export function deactivateScheme() {
   touchMode = null;
   isDragging = false;
 
+  if (img) {
+    img.style.transition = "none";
+  }
+
   hideUi(false);
   updateSchemeNavButtons();
 
-if (img) {
-  img.style.transition = "none";
-  img.style.visibility = "hidden";
-  img.removeAttribute("src");
-  img.src = "";
-  img.style.transform = "translate(0px, 0px) scale(1)";
-}
-
-if (currentSchemeBlobUrl) {
-  URL.revokeObjectURL(currentSchemeBlobUrl);
-  currentSchemeBlobUrl = null;
-}
-
-if (preloadedScheme.blobUrl) {
-  URL.revokeObjectURL(preloadedScheme.blobUrl);
-  preloadedScheme.blobUrl = null;
-  preloadedScheme.index = null;
-}
+  if (currentSchemeBlobUrl) {
+    URL.revokeObjectURL(currentSchemeBlobUrl);
+    currentSchemeBlobUrl = null;
+  }
+  if (preloadedScheme.blobUrl) {
+    URL.revokeObjectURL(preloadedScheme.blobUrl);
+    preloadedScheme.blobUrl = null;
+    preloadedScheme.index = null;
+  }
 }
 
 
