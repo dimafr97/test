@@ -82,14 +82,8 @@ function clearCurrentSchemeImage() {
   if (!img) return;
 
   img.style.transition = "none";
-  img.removeAttribute("src");
-  img.src = "";
+  img.style.visibility = "hidden";
   img.style.transform = "translate(0px, 0px) scale(1)";
-
-  if (currentSchemeBlobUrl) {
-    URL.revokeObjectURL(currentSchemeBlobUrl);
-    currentSchemeBlobUrl = null;
-  }
 }
 
 
@@ -129,11 +123,14 @@ export function initScheme({
 
   // На загрузку картинки — сброс трансформа
   if (boundImg !== img) {
-    img.addEventListener("load", () => {
-      if (!active) return;
-      resetTransform();
-      updateSchemeNavButtons();
-    });
+img.addEventListener("load", () => {
+  img.style.visibility = "visible";
+
+  if (!active) return;
+
+  resetTransform();
+  updateSchemeNavButtons();
+});
     boundImg = img;
   }
 
@@ -217,19 +214,19 @@ async function loadSchemeAtIndex(index, version = loadVersion) {
       return;
     }
 
-    // освобождаем только когда новая картинка уже готова
-    if (currentSchemeBlobUrl) {
-      URL.revokeObjectURL(currentSchemeBlobUrl);
-      currentSchemeBlobUrl = null;
-    }
+const prevBlobUrl = currentSchemeBlobUrl;
 
-    currentSchemeBlobUrl = nextBlobUrl;
-    activeIndex = index;
-    img.src = currentSchemeBlobUrl;
+currentSchemeBlobUrl = nextBlobUrl;
+activeIndex = index;
+img.src = currentSchemeBlobUrl;
 
-    // preload следующей схемы
-    preloadScheme((index + 1) % images.length, version);
-  } catch (err) {
+// старый blob освобождаем только после подстановки нового src
+if (prevBlobUrl && prevBlobUrl !== currentSchemeBlobUrl) {
+  URL.revokeObjectURL(prevBlobUrl);
+}
+
+// preload следующей схемы
+preloadScheme((index + 1) % images.length, version);  } catch (err) {
     console.error("Scheme load failed:", images[index], err);
   }
 }
@@ -304,13 +301,24 @@ export function deactivateScheme() {
   hideUi(false);
   updateSchemeNavButtons();
 
-  clearCurrentSchemeImage();
+if (img) {
+  img.style.transition = "none";
+  img.style.visibility = "hidden";
+  img.removeAttribute("src");
+  img.src = "";
+  img.style.transform = "translate(0px, 0px) scale(1)";
+}
 
-  if (preloadedScheme.blobUrl) {
-    URL.revokeObjectURL(preloadedScheme.blobUrl);
-    preloadedScheme.blobUrl = null;
-    preloadedScheme.index = null;
-  }
+if (currentSchemeBlobUrl) {
+  URL.revokeObjectURL(currentSchemeBlobUrl);
+  currentSchemeBlobUrl = null;
+}
+
+if (preloadedScheme.blobUrl) {
+  URL.revokeObjectURL(preloadedScheme.blobUrl);
+  preloadedScheme.blobUrl = null;
+  preloadedScheme.index = null;
+}
 }
 
 
