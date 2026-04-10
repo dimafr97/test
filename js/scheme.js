@@ -78,6 +78,20 @@ let onUiVisibilityInset = null;
 // Текущий режим вкладки: активирована схема или нет
 let active = false;
 
+function clearCurrentSchemeImage() {
+  if (!img) return;
+
+  img.style.transition = "none";
+  img.removeAttribute("src");
+  img.src = "";
+  img.style.transform = "translate(0px, 0px) scale(1)";
+
+  if (currentSchemeBlobUrl) {
+    URL.revokeObjectURL(currentSchemeBlobUrl);
+    currentSchemeBlobUrl = null;
+  }
+}
+
 
 /* ============================================================
    ИНИЦИАЛИЗАЦИЯ
@@ -157,6 +171,17 @@ export async function setSchemeImages(urlList) {
   activeIndex = 0;
   loadVersion += 1;
   const version = loadVersion;
+
+  // сразу очищаем старую картинку прошлой модели
+  clearCurrentSchemeImage();
+
+  // чистим preload старого набора схем
+  if (preloadedScheme.blobUrl) {
+    URL.revokeObjectURL(preloadedScheme.blobUrl);
+    preloadedScheme.blobUrl = null;
+    preloadedScheme.index = null;
+  }
+
   updateSchemeNavButtons();
 
   if (!images.length || !img) return;
@@ -276,17 +301,11 @@ export function deactivateScheme() {
   touchMode = null;
   isDragging = false;
 
-  if (img) {
-    img.style.transition = "none";
-  }
-
   hideUi(false);
   updateSchemeNavButtons();
 
-  if (currentSchemeBlobUrl) {
-    URL.revokeObjectURL(currentSchemeBlobUrl);
-    currentSchemeBlobUrl = null;
-  }
+  clearCurrentSchemeImage();
+
   if (preloadedScheme.blobUrl) {
     URL.revokeObjectURL(preloadedScheme.blobUrl);
     preloadedScheme.blobUrl = null;
