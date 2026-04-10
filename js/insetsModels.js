@@ -72,11 +72,6 @@ cad: {
     "textures/2/S3.jpg",
     "textures/2/S4.jpg",
     "textures/2/S5.jpg",
-    "textures/2/SS1.jpg",
-    "textures/2/SS2.jpg",
-    "textures/2/SS3.jpg",
-    "textures/2/SS4.jpg",
-    "textures/2/SS5.jpg",
  ],
 
   // путь в защищённом API (после ?path=)
@@ -112,6 +107,13 @@ cad: {
   name: "Пирамида и горизонтальная треугольная призма",
   desc: "Врезка двух наклонных плоскостей",
       preview: "textures/3/preview.png",
+        schemes: [
+          "textures/3/SS1.jpg",
+          "textures/3/SS2.jpg",
+          "textures/3/SS3.jpg",
+          "textures/3/SS4.jpg",
+          "textures/3/SS5.jpg",
+ ],
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/3.gltf",
@@ -177,6 +179,13 @@ cad: {
   name: "Горизонтальный цилиндр и пирамида",
   desc: "Врезка наклонной плоскости в тело вращения",
   preview: "textures/5/preview.png",
+      schemes: [
+    "textures/5/S1.jpg",
+    "textures/5/S2.jpg",
+    "textures/5/S3.jpg",
+    "textures/5/S4.jpg",
+    "textures/5/S5.jpg",
+ ],
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/5.1.gltf",
@@ -249,6 +258,13 @@ cad: {
   name: "Горизонтальный цилиндр и треугольная призма",
   desc: "Врезка наклонной плоскости в тело вращения",
   preview: "textures/7/preview.png",
+      schemes: [
+    "textures/7/S1.jpg",
+    "textures/7/S2.jpg",
+    "textures/7/S3.jpg",
+    "textures/7/S4.jpg",
+    "textures/7/S5.jpg",
+ ],
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/7.1.gltf",
@@ -315,6 +331,13 @@ cad: {
   name: "Вертикальный цилинлр и треугольная призма",
   desc: "Врезка наклонной плоскости в тело вращения",
   preview: "textures/9/preview.png",
+      schemes: [
+    "textures/9/S1.jpg",
+    "textures/9/S2.jpg",
+    "textures/9/S3.jpg",
+    "textures/9/S4.jpg",
+    "textures/9/S5.jpg",
+ ],
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/9.gltf",
