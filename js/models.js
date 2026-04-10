@@ -52,10 +52,10 @@ video: [
       `${BASE}textures/doric/s2.jpg`,
       `${BASE}textures/doric/s3.jpg`
     ],
-    photos: [
-      `${BASE}textures/doric/s2.jpg`,
-      `${BASE}textures/doric/s3.jpg`
-    ],
+//    photos: [
+//      `${BASE}textures/doric/s2.jpg`,
+//      `${BASE}textures/doric/s3.jpg`
+//    ],
 
 video: [
   `https://s3.twcstorage.ru/540d791f-86c02015-75b1-462f-b960-b855e300451a/textures/doric/v1.mp4`
