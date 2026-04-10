@@ -475,10 +475,6 @@ cad: {
   name: "Вертикальная пирамида и треугольная призма",
   desc: "Врезка наклонных плоскостей",
   preview: "textures/13/preview.png",
-  schemes: [
-    "textures/doric/s1.jpg",
-    "textures/doric/s2.jpg"
-  ],
 
   // путь в защищённом API (после ?path=)
   sourcePath: "models/13.gltf",
