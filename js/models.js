@@ -26,7 +26,7 @@ const ROOM_SOURCE_MODELS = (ROOM_SOURCE_DEFS || []).map((d) => ({
   name: d.name,
   desc: d.desc,
   url: `${BASE}${d.path}`,
-  textures: null
+  textures: d.textures || null
 }));
 
 export const MODELS = [
