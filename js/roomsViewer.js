@@ -8,7 +8,8 @@ import { loadModel } from "./models.js";
 import {
   setModel as threeSetModel,
   clearModel as threeClearModel,
-  resize as threeResize
+  resize as threeResize,
+  setRoomsFlatMode
 } from "./threeViewer.js";
 import {
   initScheme,
@@ -340,6 +341,7 @@ function openRoomById(roomId) {
 
   currentRoomId = roomId;
   document.body.classList.add("rooms-mode");
+  setRoomsFlatMode(true);
   dom.modelLabelEl.textContent = meta.name;
 
   hideGallery();
@@ -385,6 +387,7 @@ function startRoomLoading(meta) {
       if (isInsetModeActive()) return;
 
       threeSetModel(root);
+      setRoomsFlatMode(true, root);
       hideLoading();
       setViewMode("3d");
     })
@@ -503,6 +506,7 @@ function showGallery() {
 
   document.body.classList.remove("video-playing");
   document.body.classList.remove("rooms-mode");
+  setRoomsFlatMode(false);
 
   threeClearModel();
 
