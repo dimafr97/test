@@ -35,6 +35,16 @@ const RAW_ROOMS = [
 
     sourcePath: "models/doric.gltf",
 
+    textures: {
+      base: `${BASE}textures/doric/BaseColor.jpg`,
+      normal: `${BASE}textures/doric/Normal.jpg`,
+      rough: `${BASE}textures/doric/Roughness.jpg`,
+      metalness: 0,
+      roughness: 1,
+      envIntensity: 0.7
+    },
+    
+
     schemes: [
       `${BASE}textures/doric/s1.jpg`,
       `${BASE}textures/doric/s2.jpg`,
@@ -61,7 +71,8 @@ export const ROOM_SOURCE_DEFS = ROOMS
     id: m.sourceId,
     name: m.name,
     desc: m.desc,
-    path: m.sourcePath
+    path: m.sourcePath,
+    textures: m.textures || null
   }));
 
 export function getRoomMeta(id) {
