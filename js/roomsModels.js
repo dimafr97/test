@@ -36,7 +36,7 @@ const RAW_ROOMS = [
     sourcePath: "models/rooms/1/1.gltf",
 
     textures: {
-      base: "models/rooms/1/1.jpg",
+      base: `${BASE}models/rooms/1/1.jpg`,
   //    normal: `${BASE}textures/doric/Normal.jpg`,
   //    rough: `${BASE}textures/doric/Roughness.jpg`,
   //    metalness: 0,
