@@ -11,6 +11,10 @@ let camera = null;
 let renderer = null;
 
 let currentModel = null;
+// ===== Rooms flat mode =====
+let roomsFlatMode = false;
+let sceneLights = [];
+let roomsMaterialRestore = [];
 // ===== CAD overlay (точки/линии для врезок) =====
 let cadGroup = null;
 let cadScene = null;
@@ -169,6 +173,9 @@ export function setModel(root) {
   state.targetRotY = 0.00;
 
   fitCameraToModel(root);
+    if (roomsFlatMode) {
+    applyRoomsFlatMaterials(root);
+  }
 }
 
 export function clearModel(options = {}) {
@@ -179,6 +186,9 @@ export function clearModel(options = {}) {
   if (currentModel) {
     scene.remove(currentModel);
     currentModel = null;
+  }
+    if (roomsFlatMode) {
+    setRoomsFlatMode(false, null);
   }
 
   clearOutlines();
@@ -968,28 +978,40 @@ postQuad.material.uniforms.uTexel.value.set(k / rtN.width, k / rtN.height);
   renderer.render(postScene, postCam);
 }
 function setupLights() {
+  sceneLights = [];
+
   const zenith = new THREE.DirectionalLight(0xf5f8ff, 0.0);
   zenith.position.set(0, 11, 2);
   scene.add(zenith);
+  sceneLights.push(zenith);
 
   const key = new THREE.DirectionalLight(0xffc4a0, 1.85);
   key.position.set(5.5, 6.0, 3.5);
   scene.add(key);
+  sceneLights.push(key);
 
   const fill = new THREE.DirectionalLight(0xcad8ff, 0.35);
   fill.position.set(-7, 3.5, 2);
   scene.add(fill);
+  sceneLights.push(fill);
 
   const rim = new THREE.DirectionalLight(0xffffff, 0.5);
   rim.position.set(-3.5, 5, -7.5);
   scene.add(rim);
+  sceneLights.push(rim);
 
   const coldRim = new THREE.DirectionalLight(0xd8e4ff, 0.1);
   coldRim.position.set(2.5, 3.5, -5);
   scene.add(coldRim);
+  sceneLights.push(coldRim);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.04));
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x0a0a0a, 0.07));
+  const ambient = new THREE.AmbientLight(0xffffff, 0.04);
+  scene.add(ambient);
+  sceneLights.push(ambient);
+
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x0a0a0a, 0.07);
+  scene.add(hemi);
+  sceneLights.push(hemi);
 }
 
 export function setInsetNeutralLighting(enabled) {
@@ -1035,6 +1057,76 @@ export function setInsetNeutralLighting(enabled) {
       }
     }
   });
+}
+
+function clearRoomsMaterialOverrides() {
+  if (!roomsMaterialRestore.length) return;
+
+  for (const entry of roomsMaterialRestore) {
+    if (!entry?.mesh) continue;
+    entry.mesh.material = entry.material;
+  }
+
+  roomsMaterialRestore = [];
+}
+
+function applyRoomsFlatMaterials(root) {
+  clearRoomsMaterialOverrides();
+  if (!root) return;
+
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+
+    const originalMat = obj.material;
+    if (!originalMat) return;
+
+    const makeFlat = (srcMat) => {
+      const flatMat = new THREE.MeshBasicMaterial({
+        map: srcMat.map || null,
+        color: srcMat.color ? srcMat.color.clone() : new THREE.Color(0xffffff),
+        transparent: !!srcMat.transparent,
+        opacity: typeof srcMat.opacity === "number" ? srcMat.opacity : 1,
+        alphaTest: typeof srcMat.alphaTest === "number" ? srcMat.alphaTest : 0,
+        side: srcMat.side ?? THREE.FrontSide
+      });
+
+      if (flatMat.map) {
+        flatMat.map.colorSpace = THREE.SRGBColorSpace;
+      }
+
+      return flatMat;
+    };
+
+    if (Array.isArray(originalMat)) {
+      roomsMaterialRestore.push({ mesh: obj, material: originalMat });
+      obj.material = originalMat.map(makeFlat);
+    } else {
+      roomsMaterialRestore.push({ mesh: obj, material: originalMat });
+      obj.material = makeFlat(originalMat);
+    }
+  });
+}
+
+export function setRoomsFlatMode(enabled, root = currentModel) {
+  roomsFlatMode = !!enabled;
+
+  if (roomsFlatMode) {
+    for (const light of sceneLights) {
+      if (!light) continue;
+      light.visible = false;
+    }
+
+    if (root) {
+      applyRoomsFlatMaterials(root);
+    }
+  } else {
+    for (const light of sceneLights) {
+      if (!light) continue;
+      light.visible = true;
+    }
+
+    clearRoomsMaterialOverrides();
+  }
 }
 
 function initControls(canvas) {
