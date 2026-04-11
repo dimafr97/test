@@ -23,20 +23,20 @@ const MAIN_MENU = [
   },
   
   {
-  id: "section_rooms",
-  name: "Комнатки",
-  desc: "3D + Схемы + Фото + Видео",
-  preview: "textures/doric/preview.png",
-  thumbLetter: "К"
-},
-  
-  {
     id: "section_insets",
     name: "Врезки",
     desc: "3D врезок",
     preview: "textures/preview/preview2.png",
     thumbLetter: "В"
-  }
+  },
+
+  {
+  id: "section_rooms",
+  name: "Комнатки",
+  desc: "3D",
+  preview: "textures/doric/preview.png",
+  thumbLetter: "К"
+}
 ];
 
 // ✅ Временный список “врезок” — для теста дублируем мольберт
@@ -59,9 +59,9 @@ const TEMP_INSETS = [
 
 // ⚠️ УСТАНОВИ сюда chat_instance ТВОЕЙ закрытой группы:
 const ALLOWED_CHAT_INSTANCES = [
-  "-561659029981423148", // группа 1
-  "3659198091171037064", // группа 2
-  "1533210958432912681",  // группа 3
+ // "-561659029981423148", // группа 1
+//  "3659198091171037064", // группа 2
+//  "1533210958432912681",  // группа 3
   "-8865587346109190339"  // группа 4
 ];
 
