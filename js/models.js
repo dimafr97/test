@@ -7,6 +7,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 // IndexedDB cache
 import { cachedFetch } from "./cache/cachedFetch.js";
 import { INSET_SOURCE_DEFS } from "./insetsModels.js";
+import { ROOM_SOURCE_DEFS } from "./roomsModels.js";
 
 // БАЗОВЫЙ URL для защищённого доступа
 const BASE = "https://api.apparchi.ru/?path=";
@@ -18,6 +19,16 @@ const INSET_SOURCE_MODELS = (INSET_SOURCE_DEFS || []).map((d) => ({
   url: `${BASE}${d.path}`,
   textures: null
 }));
+
+// ✅ Source-модели для комнаток (генерятся из roomsModels.js)
+const ROOM_SOURCE_MODELS = (ROOM_SOURCE_DEFS || []).map((d) => ({
+  id: d.id,
+  name: d.name,
+  desc: d.desc,
+  url: `${BASE}${d.path}`,
+  textures: null
+}));
+
 export const MODELS = [
 
     {
@@ -329,10 +340,10 @@ export function getModelMeta(id) {
   return (
     MODELS.find((m) => m.id === id) ||
     INSET_SOURCE_MODELS.find((m) => m.id === id) ||
+    ROOM_SOURCE_MODELS.find((m) => m.id === id) ||
     null
   );
 }
-
 // ===================
 // Кэш моделей в памяти
 // ===================
