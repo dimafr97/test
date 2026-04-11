@@ -33,15 +33,15 @@ const RAW_ROOMS = [
     preview: `${BASE}textures/doric/preview.png`,
     thumbLetter: "К",
 
-    sourcePath: "models/doric.gltf",
+    sourcePath: "models/rooms/1/1.gltf",
 
     textures: {
-      base: `${BASE}textures/doric/BaseColor.jpg`,
-      normal: `${BASE}textures/doric/Normal.jpg`,
-      rough: `${BASE}textures/doric/Roughness.jpg`,
-      metalness: 0,
+      base: "models/rooms/1/1.jpg",
+  //    normal: `${BASE}textures/doric/Normal.jpg`,
+  //    rough: `${BASE}textures/doric/Roughness.jpg`,
+  //    metalness: 0,
       roughness: 1,
-      envIntensity: 0.7
+  //    envIntensity: 0.7
     },
     
 
