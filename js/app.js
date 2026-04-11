@@ -8,7 +8,9 @@ import { initInsetsViewer } from "./insetsViewer.js";
 import { INSETS } from "./insetsModels.js";
 import { renderGallery } from "./gallery.js";
 import { initViewer } from "./viewer.js";
+import { initRoomsViewer } from "./roomsViewer.js";
 import { MODELS } from "./models.js";
+import { ROOMS } from "./roomsModels.js";
 
 // ✅ Главное меню (как галерея, но карточки-разделы)
 const MAIN_MENU = [
@@ -19,6 +21,15 @@ const MAIN_MENU = [
     preview: "textures/preview/preview1.png",
     thumbLetter: "А"
   },
+  
+  {
+  id: "section_rooms",
+  name: "Комнатки",
+  desc: "3D + Схемы + Фото + Видео",
+  preview: "textures/doric/preview.png",
+  thumbLetter: "К"
+},
+  
   {
     id: "section_insets",
     name: "Врезки",
@@ -299,13 +310,43 @@ tabVideoBtn,
   insetOpacityRow,
   insetOpacitySlider
 });
+const roomsViewer = initRoomsViewer({
+  galleryEl,
+  viewerWrapperEl,
 
+  modelLabelEl,
+  prevBtn,
+  nextBtn,
+  backBtn,
+  bottomPrevBtn,
+  bottomNextBtn,
+  bottomBackBtn,
+
+  tab3dBtn,
+  tabSchemeBtn,
+  tabPhotoBtn,
+  tabVideoBtn,
+
+  canvasEl,
+
+  schemeOverlayEl,
+  schemeImgEl,
+
+  videoOverlayEl,
+  videoListEl,
+  videoEmptyEl,
+
+  loadingEl,
+  loadingTextEl,
+  progressBarEl,
+  statusEl
+});
 
   // 🔥 4. Инициализация галереи
 // =======================
 // ✅ Навигация по экранам
 // =======================
-let currentScreen = "main"; // "main" | "arch" | "insets"
+let currentScreen = "main"; // "main" | "arch" | "rooms" | "insets"
   
 function setBreadcrumbVisible(visible) {
   if (!breadcrumbBar) return;
@@ -327,20 +368,23 @@ function setBreadcrumbSection(title) {
 // маленький хелпер: показать список карточек в #gallery
 function showMainMenu() {
   currentScreen = "main";
-  insetViewer.showGallery(); // 🔥 СБРОС inset-mode и всего состояния
-    setBreadcrumbVisible(false);
+
+  // Сбрасываем все viewer-режимы
+  insetViewer.showGallery();
+  roomsViewer.showGallery();
+  viewer.showGallery();
+
+  setBreadcrumbVisible(false);
   setBreadcrumbSection("");
-    setBrandVisible(true);
+  setBrandVisible(true);
+
   renderGallery(galleryEl, MAIN_MENU, {
     onSelect: (id) => {
       if (id === "section_arch") showArchGallery();
+      if (id === "section_rooms") showRoomsGallery();
       if (id === "section_insets") showInsetsGallery();
-
     }
   });
-
-  // гарантируем, что мы на экране галереи
-  viewer.showGallery();
 }
 
 // экран “архитектурных деталей” = обычный список MODELS
@@ -351,6 +395,17 @@ function showArchGallery() {
   setBrandVisible(false);
   setBreadcrumbVisible(true);
   setBreadcrumbSection("Архитектурные детали");
+}
+
+function showRoomsGallery() {
+  currentScreen = "rooms";
+
+  renderGallery(galleryEl, ROOMS, { onSelect: roomsViewer.openRoomById });
+  roomsViewer.showGallery();
+
+  setBrandVisible(false);
+  setBreadcrumbVisible(true);
+  setBreadcrumbSection("Комнатки");
 }
 
 // экран “врезок” = временно только мольберт
