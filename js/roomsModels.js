@@ -4,18 +4,18 @@
 // Пока используем временно те же ресурсы, что и в "Архитектурных деталях",
 // чтобы быстро поднять новый раздел.
 // Позже ты просто заменишь preview / schemes / photos / video / sourcePath.
-
+const BASE = "https://api.apparchi.ru/?path=";
 const RAW_ROOMS = [
   {
     id: "room_0",
     name: "Общая теория / Введение",
     desc: "Схемы и видео",
-    preview: "textures/preview/preview3.webp",
+    preview: `${BASE}textures/preview/preview3.webp`,
     thumbLetter: "0",
 
     // Нулевая карточка: БЕЗ 3D
     schemes: [
-      "textures/0/arch/s1.jpg"
+      `${BASE}textures/0/arch/s1.jpg`
     ],
 
     video: [
@@ -30,18 +30,15 @@ const RAW_ROOMS = [
     id: "room_1",
     name: "Тестовая комнатка",
     desc: "Временно на ресурсах архдеталей",
-    preview: "textures/doric/preview.png",
+    preview: `${BASE}textures/doric/preview.png`,
     thumbLetter: "К",
 
-    // ВАЖНО:
-    // пока 3D берём из той же модели, что и в arch,
-    // но через ОТДЕЛЬНЫЙ sourcePath для раздела комнаток
     sourcePath: "models/doric.gltf",
 
     schemes: [
-      "textures/doric/s1.jpg",
-      "textures/doric/s2.jpg",
-      "textures/doric/s3.jpg"
+      `${BASE}textures/doric/s1.jpg`,
+      `${BASE}textures/doric/s2.jpg`,
+      `${BASE}textures/doric/s3.jpg`
     ],
 
     video: [
@@ -49,6 +46,7 @@ const RAW_ROOMS = [
     ]
   }
 ];
+
 
 // Основной список карточек раздела
 export const ROOMS = RAW_ROOMS.map((m) => ({
