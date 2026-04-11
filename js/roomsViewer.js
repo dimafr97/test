@@ -34,6 +34,10 @@ function isInsetModeActive() {
   return document.body.classList.contains("inset-mode");
 }
 
+function isRoomsModeActive() {
+  return document.body.classList.contains("rooms-mode");
+}
+
 export function initRoomsViewer(refs) {
   dom = { ...refs };
 
@@ -176,26 +180,21 @@ function setupUiHandlers() {
     tabVideoBtn
   } = dom;
 
-  backBtn.addEventListener("click", () => {
-    if (isInsetModeActive()) return;
+  const stopRoomsEvent = (e) => {
+    if (!isRoomsModeActive()) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    return true;
+  };
+
+  backBtn?.addEventListener("click", (e) => {
+    if (!stopRoomsEvent(e)) return;
     showGallery();
-  });
+  }, true);
 
-  nextBtn.addEventListener("click", () => {
-    if (isInsetModeActive()) return;
-
-    if (!currentRoomId) {
-      openRoomById(ROOMS[0].id);
-      return;
-    }
-
-    let idx = getRoomIndex(currentRoomId);
-    idx = (idx + 1) % ROOMS.length;
-    openRoomById(ROOMS[idx].id);
-  });
-
-  prevBtn.addEventListener("click", () => {
-    if (isInsetModeActive()) return;
+  prevBtn?.addEventListener("click", (e) => {
+    if (!stopRoomsEvent(e)) return;
 
     if (!currentRoomId) {
       openRoomById(ROOMS[0].id);
@@ -205,35 +204,79 @@ function setupUiHandlers() {
     let idx = getRoomIndex(currentRoomId);
     idx = (idx - 1 + ROOMS.length) % ROOMS.length;
     openRoomById(ROOMS[idx].id);
-  });
+  }, true);
 
-  bottomBackBtn?.addEventListener("click", () => backBtn.click());
-  bottomPrevBtn?.addEventListener("click", () => prevBtn.click());
-  bottomNextBtn?.addEventListener("click", () => nextBtn.click());
+  nextBtn?.addEventListener("click", (e) => {
+    if (!stopRoomsEvent(e)) return;
 
-  tab3dBtn?.addEventListener("click", () => {
+    if (!currentRoomId) {
+      openRoomById(ROOMS[0].id);
+      return;
+    }
+
+    let idx = getRoomIndex(currentRoomId);
+    idx = (idx + 1) % ROOMS.length;
+    openRoomById(ROOMS[idx].id);
+  }, true);
+
+  bottomBackBtn?.addEventListener("click", (e) => {
+    if (!stopRoomsEvent(e)) return;
+    showGallery();
+  }, true);
+
+  bottomPrevBtn?.addEventListener("click", (e) => {
+    if (!stopRoomsEvent(e)) return;
+
+    if (!currentRoomId) {
+      openRoomById(ROOMS[0].id);
+      return;
+    }
+
+    let idx = getRoomIndex(currentRoomId);
+    idx = (idx - 1 + ROOMS.length) % ROOMS.length;
+    openRoomById(ROOMS[idx].id);
+  }, true);
+
+  bottomNextBtn?.addEventListener("click", (e) => {
+    if (!stopRoomsEvent(e)) return;
+
+    if (!currentRoomId) {
+      openRoomById(ROOMS[0].id);
+      return;
+    }
+
+    let idx = getRoomIndex(currentRoomId);
+    idx = (idx + 1) % ROOMS.length;
+    openRoomById(ROOMS[idx].id);
+  }, true);
+
+  tab3dBtn?.addEventListener("click", (e) => {
+    if (!stopRoomsEvent(e)) return;
     const meta = getCurrentRoomMeta();
     if (!meta || !getRoomCapabilities(meta).has3d) return;
     setViewMode("3d");
-  });
+  }, true);
 
-  tabSchemeBtn?.addEventListener("click", () => {
+  tabSchemeBtn?.addEventListener("click", (e) => {
+    if (!stopRoomsEvent(e)) return;
     const meta = getCurrentRoomMeta();
     if (!meta || !getRoomCapabilities(meta).hasScheme) return;
     setViewMode("scheme");
-  });
+  }, true);
 
-  tabPhotoBtn?.addEventListener("click", () => {
+  tabPhotoBtn?.addEventListener("click", (e) => {
+    if (!stopRoomsEvent(e)) return;
     const meta = getCurrentRoomMeta();
     if (!meta || !getRoomCapabilities(meta).hasPhoto) return;
     setViewMode("photo");
-  });
+  }, true);
 
-  tabVideoBtn?.addEventListener("click", () => {
+  tabVideoBtn?.addEventListener("click", (e) => {
+    if (!stopRoomsEvent(e)) return;
     const meta = getCurrentRoomMeta();
     if (!meta || !getRoomCapabilities(meta).hasVideo) return;
     setViewMode("video");
-  });
+  }, true);
 }
 
 function setupGlobalTouchBlock() {
@@ -296,6 +339,7 @@ function openRoomById(roomId) {
   if (!meta) return;
 
   currentRoomId = roomId;
+  document.body.classList.add("rooms-mode");
   dom.modelLabelEl.textContent = meta.name;
 
   hideGallery();
@@ -387,7 +431,7 @@ function configureViewTabsForRoom(meta) {
   setViewMode(chooseStartView(meta));
 }
 
-function setViewMode(mode) {
+async function setViewMode(mode) {
   activeView = mode;
 
   const {
@@ -415,16 +459,17 @@ function setViewMode(mode) {
 
     if (isImageMode) {
       const meta = getCurrentRoomMeta();
+      const list =
+        mode === "scheme"
+          ? (Array.isArray(meta?.schemes) ? meta.schemes : [])
+          : (Array.isArray(meta?.photos) ? meta.photos : []);
 
-      if (meta) {
-        if (mode === "scheme") {
-          setSchemeImages(Array.isArray(meta.schemes) ? meta.schemes : []);
-        } else {
-          setSchemeImages(Array.isArray(meta.photos) ? meta.photos : []);
-        }
+      deactivateScheme();
+      await setSchemeImages(list);
+
+      if (activeView === mode) {
+        activateScheme();
       }
-
-      activateScheme();
     } else {
       deactivateScheme();
     }
@@ -457,6 +502,7 @@ function showGallery() {
   if (dom?.videoOverlayEl) dom.videoOverlayEl.style.display = "none";
 
   document.body.classList.remove("video-playing");
+  document.body.classList.remove("rooms-mode");
 
   threeClearModel();
 
